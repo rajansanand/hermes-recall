@@ -4,7 +4,7 @@ from threading import Event, Thread
 
 import pytest
 
-from qdrant_memory.provider import QdrantMemoryProvider
+from hermes_recall.provider import QdrantMemoryProvider
 
 from .helpers import Embedder, config
 from .test_provider import provider
@@ -66,7 +66,7 @@ def test_shutdown_keeps_foreground_tool_resources_alive(tmp_path, monkeypatch):
 
     monkeypatch.setattr(p.store, "search", slow)
     thread = Thread(
-        target=lambda: results.append(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))
+        target=lambda: results.append(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))
     )
     thread.start()
     try:
@@ -82,12 +82,12 @@ def test_shutdown_keeps_foreground_tool_resources_alive(tmp_path, monkeypatch):
         thread.join(10)
         p._worker.join(10)
     assert results == ['{"memories": []}']
-    assert "error" in p.handle_tool_call("qdrant_memory_search", {"query": "cats"})
+    assert "error" in p.handle_tool_call("hermes_recall_search", {"query": "cats"})
 
 
 def test_writer_lease_covers_remote_mode_and_url_aliases(tmp_path):
     """Changing a Cloud/server label cannot overlap a retiring physical writer."""
-    from qdrant_memory.ownership import WriterLease
+    from hermes_recall.ownership import WriterLease
 
     lease = WriterLease.for_config(
         tmp_path, config(qdrant={"mode": "server", "url": "https://example.com"})

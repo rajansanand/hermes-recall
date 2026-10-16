@@ -75,7 +75,7 @@ def save_config(values, hermes_home):
     """Atomically save behavior settings with mode 0600 and strip embedded secrets."""
     from utils import atomic_json_write, read_json_or_empty
 
-    path = Path(hermes_home) / "qdrant-memory.json"
+    path = Path(hermes_home) / "hermes-recall.json"
     existing = read_json_or_empty(path) if path.exists() else {}
     cfg = merge(DEFAULTS, existing)
     environment = environment_qdrant_settings()

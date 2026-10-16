@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 from qdrant_client import QdrantClient
 
-from qdrant_memory import create_provider
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.migration import map_record, migrate
-from qdrant_memory.models import Scope
-from qdrant_memory.provider import QdrantMemoryProvider
+from hermes_recall import create_provider
+from hermes_recall.ledger import Ledger
+from hermes_recall.migration import map_record, migrate
+from hermes_recall.models import Scope
+from hermes_recall.provider import QdrantMemoryProvider
 from scripts.evaluate import evaluate
 
 from .helpers import LLM, Embedder, config, runtime
@@ -74,7 +74,7 @@ def test_collector_registers_task_on_created_runtime_context(monkeypatch):
     monkeypatch.setattr("hermes_cli.plugins.get_plugin_manager", lambda: object())
     provider = create_provider(ctx)
     assert provider.context is runtime_ctx
-    assert tasks[0][0] == ("qdrant_memory_extraction",)
+    assert tasks[0][0] == ("hermes_recall_extraction",)
 
 
 @pytest.mark.parametrize("failure_stage", ["Ledger", "Runtime"])
@@ -103,13 +103,13 @@ def test_initialization_releases_resources_after_setup_failure(
         ledger.close = close
         return ledger
 
-    monkeypatch.setattr("qdrant_memory.provider.Ledger", tracked_ledger)
+    monkeypatch.setattr("hermes_recall.provider.Ledger", tracked_ledger)
 
     def fail(*args, **kwargs):
         """Inject a deterministic failure at the exercised boundary."""
         raise RuntimeError("setup failed")
 
-    monkeypatch.setattr("qdrant_memory.provider." + failure_stage, fail)
+    monkeypatch.setattr("hermes_recall.provider." + failure_stage, fail)
     with pytest.raises(RuntimeError, match="setup failed"):
         p.initialize("session", hermes_home=str(tmp_path))
     assert "embedder" in closed

@@ -1,6 +1,6 @@
 """The reproducible benchmark must explain both real recovery reader queries."""
 
-from qdrant_memory.ledger import Ledger
+from hermes_recall.ledger import Ledger
 from scripts.benchmark_recovery import query_plans
 
 

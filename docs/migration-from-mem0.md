@@ -9,14 +9,14 @@ Embedded Qdrant also requires stopping other clients that hold its local storage
 ## JSON export: plan, stop writers, migrate and restart
 
 Replace `/path/export.json` with your export's absolute path and
-`hermes_qdrant_memory` with the intended target collection throughout these commands.
+`hermes_recall` with the intended target collection throughout these commands.
 The target must match the plugin configuration if the agent should use it afterward.
 `--target-collection` overrides only the migration command, not saved configuration.
 
 ```bash
-hermes qdrant-memory status
-hermes qdrant-memory migrate mem0 --source-json /path/export.json \
-  --target-collection hermes_qdrant_memory --dry-run
+hermes hermes-recall status
+hermes hermes-recall migrate mem0 --source-json /path/export.json \
+  --target-collection hermes_recall --dry-run
 
 # For a gateway installed as a background service:
 hermes gateway status
@@ -25,10 +25,10 @@ hermes gateway status
 
 # Exit interactive Hermes sessions with /exit. For a foreground gateway,
 # press Ctrl-C in its terminal and wait for the process to exit.
-hermes qdrant-memory migrate mem0 --source-json /path/export.json \
-  --target-collection hermes_qdrant_memory --reembed --resume --verify
-hermes qdrant-memory verify --collection hermes_qdrant_memory
-hermes qdrant-memory stats --collection hermes_qdrant_memory
+hermes hermes-recall migrate mem0 --source-json /path/export.json \
+  --target-collection hermes_recall --reembed --resume --verify
+hermes hermes-recall verify --collection hermes_recall
+hermes hermes-recall stats --collection hermes_recall
 ```
 
 Only after migration and verification succeed, restart the background service if it
@@ -67,7 +67,7 @@ text, record identifiers, paths, or credentials. Use `--quiet` to suppress
 progress, or redirect stdout to save JSON while keeping progress visible:
 
 ```bash
-hermes qdrant-memory migrate mem0 --source-json /path/export.json --verify > migration-result.json
+hermes hermes-recall migrate mem0 --source-json /path/export.json --verify > migration-result.json
 ```
 
 `WriterBusyError` / `code: writer_busy` means another local session or gateway still
@@ -81,8 +81,8 @@ Do not delete `.writer.lock`, `state.db` or its SQLite sidecars to bypass owners
 Once the writer has stopped, rerun the original source and target:
 
 ```bash
-hermes qdrant-memory migrate mem0 --source-json /path/export.json \
-  --target-collection hermes_qdrant_memory --resume --verify
+hermes hermes-recall migrate mem0 --source-json /path/export.json \
+  --target-collection hermes_recall --resume --verify
 ```
 
 A migration can start and then stop, or retain failed operations. Correct the
@@ -90,10 +90,10 @@ connection or configuration problem first. Then resume the same export, target
 and embedding pipeline while writers remain stopped:
 
 ```bash
-hermes qdrant-memory migrate mem0 --source-json /path/export.json \
-  --target-collection hermes_qdrant_memory --resume --retry-failed --verify
-hermes qdrant-memory verify --collection hermes_qdrant_memory
-hermes qdrant-memory stats --collection hermes_qdrant_memory
+hermes hermes-recall migrate mem0 --source-json /path/export.json \
+  --target-collection hermes_recall --resume --retry-failed --verify
+hermes hermes-recall verify --collection hermes_recall
+hermes hermes-recall stats --collection hermes_recall
 ```
 
 Do not clear the collection to resolve a lock conflict. Counts alone do not prove a
@@ -109,9 +109,9 @@ Unix epoch for reproducible supplemental imports. Unknown fields survive in
 own namespaces. `_cloud_memory_id` takes priority over local point IDs.
 
 ```bash
-hermes qdrant-memory migrate mem0 \
+hermes hermes-recall migrate mem0 \
   --source-qdrant-collection hermes_mem0 --source-config /path/mem0.json \
-  --target-collection hermes_qdrant_memory --reembed --resume --verify
+  --target-collection hermes_recall --reembed --resume --verify
 ```
 
 Only this source adapter reads the legacy `vector_store.config` block. It calls

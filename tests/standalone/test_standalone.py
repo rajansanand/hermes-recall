@@ -13,11 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from qdrant_memory.config import ledger_namespace
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.ownership import WriterLease
-from qdrant_memory.reset import begin_destination_reset, begin_scope_delete, scope_delete_intent
-from qdrant_memory.standalone import load_standalone_config
+from hermes_recall.config import ledger_namespace
+from hermes_recall.ledger import Ledger
+from hermes_recall.ownership import WriterLease
+from hermes_recall.reset import begin_destination_reset, begin_scope_delete, scope_delete_intent
+from hermes_recall.standalone import load_standalone_config
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def profile(tmp_path):
             "base_url": f"http://127.0.0.1:{server.server_port}",
         },
     }
-    (home / "qdrant-memory.json").write_text(json.dumps(cfg), encoding="utf-8")
+    (home / "hermes-recall.json").write_text(json.dumps(cfg), encoding="utf-8")
     guard = tmp_path / "guard"
     guard.mkdir()
     (guard / "sitecustomize.py").write_text(
@@ -114,7 +114,7 @@ def command(profile, *args, ok=True):
     """Exercise the installed console entry point from a foreign working directory."""
     home, env = profile
     executable = Path(sysconfig.get_path("scripts")) / (
-        "qdrant-memory.exe" if os.name == "nt" else "qdrant-memory"
+        "hermes-recall.exe" if os.name == "nt" else "hermes-recall"
     )
     result = subprocess.run(
         [str(executable), "--home", str(home), *args],
@@ -131,7 +131,7 @@ def command(profile, *args, ok=True):
 def test_cli_crud_restart_scope_and_migration(profile):
     """CRUD is durable; foreign IDs are denied and migration shares the core."""
     home, _ = profile
-    assert command(profile, "status")["collection"] == "qdrant_memory"
+    assert command(profile, "status")["collection"] == "hermes_recall"
     assert command(profile, "init")["ok"]
     memory = command(profile, "add", "--text", "Cats prefer warm sunlight")
     memory_id = memory["id"]
@@ -145,7 +145,7 @@ def test_cli_crud_restart_scope_and_migration(profile):
         ]
         == "UPDATE"
     )
-    cfg_path = home / "qdrant-memory.json"
+    cfg_path = home / "hermes-recall.json"
     cfg = json.loads(cfg_path.read_text())
     cfg["scope"]["user_id"] = "foreign"
     cfg_path.write_text(json.dumps(cfg))
@@ -186,16 +186,16 @@ def test_cli_crud_restart_scope_and_migration(profile):
 def test_invalid_configuration_never_creates_storage(profile):
     """Malformed config and unsafe resolved embedding secrets fail before storage I/O."""
     home, env = profile
-    (home / "qdrant-memory.json").write_text('{"scope": {"user_id": ""}}')
+    (home / "hermes-recall.json").write_text('{"scope": {"user_id": ""}}')
     command(profile, "add", "--text", "invalid", ok=False)
-    assert not (home / "qdrant-memory").exists()
-    (home / "qdrant-memory.json").write_text('{"embedding": {"base_url": "http://example.com"}}')
+    assert not (home / "hermes-recall").exists()
+    (home / "hermes-recall.json").write_text('{"embedding": {"base_url": "http://example.com"}}')
     env["EMBEDDING_API_KEY"] = "private-fixture"
     command(profile, "init", ok=False)
-    assert not (home / "qdrant-memory").exists()
-    (home / "qdrant-memory.json").write_text("{broken")
+    assert not (home / "hermes-recall").exists()
+    (home / "hermes-recall.json").write_text("{broken")
     command(profile, "init", ok=False)
-    assert not (home / "qdrant-memory").exists()
+    assert not (home / "hermes-recall").exists()
 
 
 def test_writer_and_destructive_recovery(profile):
@@ -239,7 +239,7 @@ def test_official_mcp_client(profile):
 
     home, env = profile
     command(profile, "init")
-    config_path = home / "qdrant-memory.json"
+    config_path = home / "hermes-recall.json"
     cfg = json.loads(config_path.read_text())
     cfg["scope"]["agent_id"] = "foreign-agent"
     config_path.write_text(json.dumps(cfg))
@@ -251,7 +251,7 @@ def test_official_mcp_client(profile):
         """Verify stable tool schemas, mutations and identity-override rejection."""
         parameters = StdioServerParameters(
             command=sys.executable,
-            args=["-m", "qdrant_memory.standalone", "--home", str(home), "mcp"],
+            args=["-m", "hermes_recall.standalone", "--home", str(home), "mcp"],
             env=env,
         )
         async with stdio_client(parameters, errlog=sys.stderr) as (read, write):
@@ -259,43 +259,45 @@ def test_official_mcp_client(profile):
                 await session.initialize()
                 tools = (await session.list_tools()).tools
                 assert {tool.name for tool in tools} == {
-                    "qdrant_memory_search",
-                    "qdrant_memory_add",
-                    "qdrant_memory_update",
-                    "qdrant_memory_delete",
+                    "hermes_recall_search",
+                    "hermes_recall_add",
+                    "hermes_recall_update",
+                    "hermes_recall_delete",
                 }
-                assert all(tool.inputSchema["additionalProperties"] is False for tool in tools)
-                added = await session.call_tool("qdrant_memory_add", {"text": "MCP durable fact"})
-                assert not added.isError
+                assert all(tool.input_schema["additionalProperties"] is False for tool in tools)
+                added = await session.call_tool("hermes_recall_add", {"text": "MCP durable fact"})
+                assert not added.is_error
                 memory_id = json.loads(added.content[0].text)["id"]
                 assert not (
-                    await session.call_tool("qdrant_memory_search", {"query": "MCP durable fact"})
-                ).isError
+                    await session.call_tool("hermes_recall_search", {"query": "MCP durable fact"})
+                ).is_error
                 assert not (
                     await session.call_tool(
-                        "qdrant_memory_update", {"id": memory_id, "text": "MCP replacement"}
+                        "hermes_recall_update", {"id": memory_id, "text": "MCP replacement"}
                     )
-                ).isError
+                ).is_error
                 assert (
                     await session.call_tool(
-                        "qdrant_memory_add", {"text": "bad", "user_id": "foreign"}
+                        "hermes_recall_add", {"text": "bad", "user_id": "foreign"}
                     )
-                ).isError
+                ).is_error
                 assert (
                     await session.call_tool(
-                        "qdrant_memory_update",
+                        "hermes_recall_update",
                         {"id": "00000000-0000-0000-0000-000000000001", "text": "bad"},
                     )
-                ).isError
-                assert (await session.call_tool("qdrant_memory_delete", {"id": foreign_id})).isError
-                malformed = await session.call_tool("qdrant_memory_add", {"text": 123})
-                assert malformed.isError
+                ).is_error
+                assert (
+                    await session.call_tool("hermes_recall_delete", {"id": foreign_id})
+                ).is_error
+                malformed = await session.call_tool("hermes_recall_add", {"text": 123})
+                assert malformed.is_error
                 assert "123" not in malformed.content[0].text
-                assert (await session.call_tool("qdrant_memory_add", {})).isError
-                assert (await session.call_tool("qdrant_memory_delete_all", {})).isError
+                assert (await session.call_tool("hermes_recall_add", {})).is_error
+                assert (await session.call_tool("hermes_recall_delete_all", {})).is_error
                 assert not (
-                    await session.call_tool("qdrant_memory_delete", {"id": memory_id})
-                ).isError
+                    await session.call_tool("hermes_recall_delete", {"id": memory_id})
+                ).is_error
                 assert (
                     command(profile, "add", "--text", "busy", ok=False)["error"]["type"]
                     == "WriterBusyError"
@@ -308,7 +310,7 @@ def test_official_mcp_client(profile):
 def test_transport_retry_and_durable_failed_write(profile):
     """Retry transient transport failures and replay failed durable writes on restart."""
     home, _ = profile
-    path = home / "qdrant-memory.json"
+    path = home / "hermes-recall.json"
     cfg = json.loads(path.read_text())
     cfg["embedding"]["document_instruction"] = "doc:"
     cfg["write"] = {"max_attempts": 2, "backoff_base_seconds": 0, "backoff_max_seconds": 0}

@@ -7,7 +7,7 @@ without pasting credentials into logs or issues.
 
 | Symptom | Checks and recovery |
 | --- | --- |
-| Provider not discovered | Confirm the directory is named qdrant-memory under the active profile's plugins directory and contains the root entry point. Confirm a compatible Hermes host and dependencies prepared by Hermes PM. Restart the runtime. |
+| Provider not discovered | Confirm the directory is named hermes-recall under the active profile's plugins directory and contains the root entry point. Confirm a compatible Hermes host and dependencies prepared by Hermes PM. Restart the runtime. |
 | Embedding connection or timeout error | Check the configured base URL and service process. For default Ollama, confirm qwen3-embedding:4b is provisioned. Fix service availability before retrying failed work. |
 | Dimension, distance or fingerprint mismatch | Restore the previous pipeline configuration, or create a separate compatible target collection and migrate explicitly. Do not change the live collection schema or delete its identity point. |
 | Nonempty collection has no trusted fingerprint | It is not a plugin-managed target. Use a new collection. Import legacy memories through migration rather than reusing an unknown schema. |
@@ -31,15 +31,15 @@ without pasting credentials into logs or issues.
 ## Recovery procedure
 
 ```bash
-hermes qdrant-memory status
+hermes hermes-recall status
 # Stop interactive/foreground writers; for an installed background gateway:
 hermes gateway status
 hermes gateway stop
 hermes gateway status
-hermes qdrant-memory doctor
-hermes qdrant-memory stats
-hermes qdrant-memory retry
-hermes qdrant-memory verify
+hermes hermes-recall doctor
+hermes hermes-recall stats
+hermes hermes-recall retry
+hermes hermes-recall verify
 ```
 
 Only after recovery and verification succeed, restart the background service if it
@@ -58,9 +58,9 @@ It does not rewrite damaged records or create a missing collection.
 For migration-specific failure recovery, use the original source and flags:
 
 ```bash
-hermes qdrant-memory migrate mem0 --source-json /path/to/export.json \
-  --target-collection hermes_qdrant_memory --resume --retry-failed --verify
-hermes qdrant-memory verify --collection hermes_qdrant_memory
+hermes hermes-recall migrate mem0 --source-json /path/to/export.json \
+  --target-collection hermes_recall --resume --retry-failed --verify
+hermes hermes-recall verify --collection hermes_recall
 ```
 
 Keep writers stopped while running migration recovery. The [migration guide](migration-from-mem0.md)

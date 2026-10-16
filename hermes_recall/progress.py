@@ -73,7 +73,7 @@ class MigrationProgress:
         idle = f"; waiting, no progress for {current - self.changed:.0f}s" if waiting else ""
         try:
             print(
-                f"[qdrant-memory +{current - self.started:.0f}s] {self.stage}{counts}{idle}",
+                f"[hermes-recall +{current - self.started:.0f}s] {self.stage}{counts}{idle}",
                 file=self.stream,
                 flush=True,
             )

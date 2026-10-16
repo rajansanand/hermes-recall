@@ -2,8 +2,8 @@
 
 import pytest
 
-from qdrant_memory.models import Scope, content_hash
-from qdrant_memory.tools import dispatch
+from hermes_recall.models import Scope, content_hash
+from hermes_recall.tools import dispatch
 from tests.helpers import runtime
 
 
@@ -61,7 +61,7 @@ def test_unprepared_pre_delete_event_cannot_recreate_memory(tmp_path):
         identifier = _add_original_memory(rt, scope)
         event_key = _queue_old_turn(rt, scope)
 
-        result = dispatch(rt, "qdrant_memory_delete", {"id": identifier}, scope, "alice-session")
+        result = dispatch(rt, "hermes_recall_delete", {"id": identifier}, scope, "alice-session")
         assert result == {"id": identifier, "action": "DELETE"}
         assert rt.store.get(identifier, scope) is None
 
@@ -134,7 +134,7 @@ def test_prepared_old_upsert_is_fenced_after_delete(tmp_path, monkeypatch, add_s
             == old_operation["content_hash"]
         )
 
-        result = dispatch(rt, "qdrant_memory_delete", {"id": added["id"]}, scope, "alice-session")
+        result = dispatch(rt, "hermes_recall_delete", {"id": added["id"]}, scope, "alice-session")
         assert result == {"id": added["id"], "action": "DELETE"}
         assert rt.store.get(added["id"], scope) is None
 
@@ -165,7 +165,7 @@ def test_failed_delete_keeps_fence_through_retry(tmp_path, monkeypatch):
 
         monkeypatch.setattr(rt.store, "delete", fail_delete)
         with pytest.raises(ValueError, match="simulated delete failure"):
-            dispatch(rt, "qdrant_memory_delete", {"id": identifier}, scope, "alice-session")
+            dispatch(rt, "hermes_recall_delete", {"id": identifier}, scope, "alice-session")
         delete_rows = rt.ledger.db.execute(
             """SELECT idempotency_key,status FROM operations
             WHERE point_id=? AND action='DELETE' AND source_id=?""",

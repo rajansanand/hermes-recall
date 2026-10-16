@@ -19,7 +19,7 @@ build/
 dist/
 *.db*
 manifests/
-qdrant-memory.json
+hermes-recall.json
 .agents/
 IDEA.md
 .vscode/
@@ -31,3 +31,13 @@ reports/
 
 # Internal release preparation records; public notes live in docs/releases/v*.md
 docs/releases/PRE_RELEASE_*.md
+
+hermes-recall/
+*.before-*
+*.writer.lock
+.build-home/
+.build-runtime/
+.release-env/
+.reports/
+
+.verify-env/

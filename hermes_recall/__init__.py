@@ -20,13 +20,13 @@ def create_provider(ctx):
         from hermes_cli.plugins import PluginContext, PluginManifest, get_plugin_manager
 
         runtime_ctx = PluginContext(
-            PluginManifest(name="qdrant-memory", key="qdrant-memory"), get_plugin_manager()
+            PluginManifest(name="hermes-recall", key="hermes-recall"), get_plugin_manager()
         )
     else:
         runtime_ctx = ctx
 
     runtime_ctx.register_auxiliary_task(
-        "qdrant_memory_extraction",
+        "hermes_recall_extraction",
         display_name="Qdrant Memory Extraction",
         description="Extract and reconcile durable memories.",
     )

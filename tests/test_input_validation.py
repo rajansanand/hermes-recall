@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qdrant_memory.migration import verify_collection
-from qdrant_memory.models import Scope, content_hash, enforce_limits, payload
+from hermes_recall.migration import verify_collection
+from hermes_recall.models import Scope, content_hash, enforce_limits, payload
 from scripts.evaluate import evaluate
 
 from .helpers import config, runtime

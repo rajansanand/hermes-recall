@@ -58,11 +58,13 @@ class QdrantMemoryProvider(MemoryProvider):
         self._cache_hits = self._cache_calls = 0
         self._latencies = []
         self._stop_at = None
+        self._retired = False
+        self._backend = None
 
     @property
     def name(self):
         """Return the stable provider name used by configuration and discovery."""
-        return "qdrant-memory"
+        return "hermes-recall"
 
     def is_available(self):
         """Check local configuration and imports without probing external services."""
@@ -76,7 +78,7 @@ class QdrantMemoryProvider(MemoryProvider):
 
     def unavailable_reason(self):
         """Return a setup hint without exposing credentials or response bodies."""
-        return "Check qdrant-memory.json, scoped credentials and declared plugin dependencies."
+        return "Check hermes-recall.json, scoped credentials and declared plugin dependencies."
 
     def initialize(self, session_id, **kwargs):
         """Bind a profile, validate its collection and start context-preserving recovery.
@@ -92,20 +94,59 @@ class QdrantMemoryProvider(MemoryProvider):
         self._scopes[session_id] = Scope(
             str(kwargs.get("user_id") or self.default_scope.user_id), self.default_scope.agent_id
         )
+        from .shared_backend import acquire, release
+
         self._resources = ExitStack()
+        try:
+            backend, fresh = acquire(self.home, self.cfg, self._open_backend)
+            self._backend = backend
+            self._resources.callback(lambda: release(backend, retired=self._retired))
+            if self.client is not None and self.client is not backend.client:
+                self.client.close()
+            self.embedder = backend.embedder
+            self.client = backend.client
+            self.ledger = backend.ledger
+            self.store = backend.store
+            self._unattributed_sessions = self.ledger.unattributed_sessions()
+            self._blocked_sessions.update(self._unattributed_sessions)
+            self._provenance = self.ledger.session_provenance()
+            self._authors = {key: value["authors"] for key, value in self._provenance.items()}
+            self.runtime = Runtime(
+                self.cfg,
+                self.store,
+                self.ledger,
+                Extractor(self.context.llm, self.cfg["llm"]),
+                stop_requested=self._stop_requested,
+            )
+            self.runtime.lock = backend.lock
+        except Exception:
+            self._resources.close()
+            self._backend = None
+            raise
+        self._accepting = True
+        self._worker = spawn_context_thread(self._work, name="hermes-recall-writer")
+        self._worker.start()
+        if fresh:
+            self._queue("recover", None)
+
+    def _open_backend(self):
+        """Own one embedded client/ledger/lease until the last chat worker exits."""
+        from types import SimpleNamespace
+
+        resources = ExitStack()
         try:
             if self.client is not None:
                 # Injected clients are owned by the provider once initialization begins.
                 # Register them before ledger setup so every failure path releases the
                 # embedded Qdrant file lock.
-                self._resources.callback(self.client.close)
+                resources.callback(self.client.close)
             lease = WriterLease.for_config(self.home, self.cfg)
-            self._resources.callback(lease.close)
+            resources.callback(lease.close)
             self.embedder = self.embedder or build_embedder(self.context, self.cfg)
             if hasattr(self.embedder, "close"):
-                self._resources.callback(self.embedder.close)
+                resources.callback(self.embedder.close)
             self.ledger = Ledger(self.home, ledger_namespace(self.cfg))
-            self._resources.callback(self.ledger.close)
+            resources.callback(self.ledger.close)
             pending_reset = has_pending_reset(self.ledger)
             pending_deletes = pending_scope_deletes(self.ledger)
             if pending_deletes:
@@ -121,7 +162,7 @@ class QdrantMemoryProvider(MemoryProvider):
                 raise ScopeDeleteRecoveryRequiredError()
             if self.client is None:
                 self.client = build_client(self.cfg)
-                self._resources.callback(self.client.close)
+                resources.callback(self.client.close)
             store = QdrantStore(self.client, self.cfg, self.embedder)
             self.store = store
             original_client = store.client
@@ -130,7 +171,7 @@ class QdrantMemoryProvider(MemoryProvider):
                 if store.client is not original_client:
                     store.client.close()
 
-            self._resources.callback(close_replaced_client)
+            resources.callback(close_replaced_client)
             if pending_reset:
                 # Finish an explicitly authorized reset before recovery can replay rows.
                 try:
@@ -139,25 +180,19 @@ class QdrantMemoryProvider(MemoryProvider):
                     self.client = store.client
             else:
                 store.initialize()
-            self._unattributed_sessions = self.ledger.unattributed_sessions()
-            self._blocked_sessions.update(self._unattributed_sessions)
             self.ledger.invalidate_transcript_history()
-            self._provenance = self.ledger.session_provenance()
-            self._authors = {key: value["authors"] for key, value in self._provenance.items()}
-            self.runtime = Runtime(
-                self.cfg,
-                self.store,
-                self.ledger,
-                Extractor(self.context.llm, self.cfg["llm"]),
-                stop_requested=self._stop_requested,
+            return SimpleNamespace(
+                resources=resources,
+                embedder=self.embedder,
+                client=self.client,
+                ledger=self.ledger,
+                store=self.store,
+                lock=RLock(),
+                refs=0,
             )
         except Exception:
-            self._resources.close()
+            resources.close()
             raise
-        self._accepting = True
-        self._worker = spawn_context_thread(self._work, name="qdrant-memory-writer")
-        self._worker.start()
-        self._queue("recover", None)
 
     def _queue(self, kind, value):
         """Queue a job with the caller's context while work admission remains open."""
@@ -185,7 +220,7 @@ class QdrantMemoryProvider(MemoryProvider):
                     context.run(self._run_job, kind, value)
                 except Exception as exc:
                     logger.warning(
-                        "qdrant-memory background failure %s", json.dumps(safe_error(exc))
+                        "hermes-recall background failure %s", json.dumps(safe_error(exc))
                     )
                 finally:
                     with self._condition:
@@ -203,7 +238,7 @@ class QdrantMemoryProvider(MemoryProvider):
         """Run recovery, event preparation or generation-checked background recall."""
         if kind == "recover":
             if failures := self.runtime.recover():
-                logger.warning("qdrant-memory recovery retained %d failed work items", failures)
+                logger.warning("hermes-recall recovery retained %d failed work items", failures)
         elif kind == "event":
             self.runtime.process_event(value)
         else:
@@ -234,7 +269,7 @@ class QdrantMemoryProvider(MemoryProvider):
             return scope
 
     def on_turn_start(self, turn_number, message, **kwargs):
-        """Update author scope and invalidate recall without performing service I/O."""
+        """Update author scope, invalidate stale recall and retrieve the current question."""
         session = kwargs.get("session_id") or self.session_id
         with self._condition:
             self._turns[session] = turn_number
@@ -267,6 +302,7 @@ class QdrantMemoryProvider(MemoryProvider):
                     session, self._scopes.get(session, self.default_scope).user_id
                 )
             self._blocked_sessions.discard(session)
+        self._prepare_recall(message, session_id=session)
 
     def _remember_author(self, session, user_id, explicit=False):
         """Persist attribution before admission; a failed write revokes active recall."""
@@ -353,34 +389,70 @@ class QdrantMemoryProvider(MemoryProvider):
         )
 
     def queue_prefetch(self, query, *, session_id=""):
-        """Invalidate old recall and queue a search tied to the session generation."""
-        session = session_id or self.session_id
-        with self._condition:
-            if session in self._blocked_sessions:
-                return
-            generation = self._generations.get(session, 0) + 1
-            self._generations[session] = generation
-            self._cache.pop(session, None)
-            self._queue("prefetch", (session, query, self._scope(session), generation))
+        """Current-query recall runs before the reply; no post-reply warmup needed."""
+        return None
 
     def prefetch(self, query, *, session_id=""):
-        """Return matching cached recall or an empty string without network I/O."""
+        """Return only recall prepared for this exact question and current user."""
         session = session_id or self.session_id
         with self._condition:
-            if session in self._blocked_sessions:
+            if not self._accepting or session in self._blocked_sessions:
                 return ""
-            self._cache_calls += 1
             cached = self._cache.get(session)
-            if cached and cached[0] == self._scopes.get(session, self.default_scope):
+            self._cache_calls += 1
+            matched = cached and cached[:2] == (self._scope(session), query)
+            if matched:
                 self._cache_hits += 1
-                if self._accepting:
-                    self.ledger.measure(
-                        "prefetch_cache_hit_rate", self._cache_hits / self._cache_calls
-                    )
-                return cached[1]
-            if self._accepting:
-                self.ledger.measure("prefetch_cache_hit_rate", self._cache_hits / self._cache_calls)
+            self.ledger.measure("prefetch_cache_hit_rate", self._cache_hits / self._cache_calls)
+            if matched:
+                return cached[2]
         return ""
+
+    def _prepare_recall(self, query, *, session_id=""):
+        """Wait for current-query retrieval during native turn start, before fast prefetch."""
+        session = session_id or self.session_id
+        started = time.monotonic()
+        with self._condition:
+            self._cache.pop(session, None)
+            if not self._accepting or session in self._blocked_sessions or not query:
+                return
+            scope = self._scope(session)
+            generation = self._generations.get(session, 0)
+        # Local count avoids a remote request for a user with no stored facts.
+        if not self.runtime.lock.acquire(timeout=2.0):
+            return
+        try:
+            if not self.store.count(scope):
+                return
+        finally:
+            self.runtime.lock.release()
+        vector = self.embedder.embed_query(query)
+        if not self.runtime.lock.acquire(timeout=2.0):
+            return
+        try:
+            if not self._accepting:
+                return
+            hits = self.store.search(query, scope, vector=vector)
+        finally:
+            self.runtime.lock.release()
+        with self._condition:
+            if (
+                not self._accepting
+                or session in self._blocked_sessions
+                or self._scope(session) != scope
+                or self._generations.get(session, 0) != generation
+            ):
+                return
+            self._cache[session] = (
+                scope,
+                query,
+                "\n".join("- " + hit.payload["text"] for hit in hits),
+            )
+        logger.info(
+            "hermes-recall current-query recall ready: %d results in %.2fs",
+            len(hits),
+            time.monotonic() - started,
+        )
 
     def on_session_switch(self, new_session_id, **kwargs):
         """Switch sessions and invalidate all in-flight recall generations.
@@ -554,7 +626,12 @@ class QdrantMemoryProvider(MemoryProvider):
 
     def shutdown(self):
         """Bound queued drain and retain ownership until an active request finishes."""
+        from .shared_backend import retire
+
         with self._condition:
+            if not self._retired and self._backend is not None:
+                retire(self._backend)
+                self._retired = True
             self._accepting = False
             timeout = self.cfg["write"]["shutdown_timeout_seconds"]
             self._stop_at = time.monotonic() + timeout

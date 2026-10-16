@@ -3,8 +3,8 @@
 import json
 from types import SimpleNamespace
 
-from qdrant_memory.models import Scope
-from qdrant_memory.provider import QdrantMemoryProvider
+from hermes_recall.models import Scope
+from hermes_recall.provider import QdrantMemoryProvider
 
 from .helpers import LLM, Embedder, config
 
@@ -40,14 +40,14 @@ def test_sessions_authors_cache_and_builtin_previous_value(tmp_path):
     p.on_turn_start(1, "", author_id="alice")
     p.sync_turn("cats preferred", "ack", session_id="first", turn_author={"id": "alice"})
     assert p.wait_idle()
-    p.queue_prefetch("cats", session_id="first")
+    p._prepare_recall("cats", session_id="first")
     assert p.wait_idle()
     assert "cats preferred" in p.prefetch("cats", session_id="first")
     p.on_session_switch("second")
     p.on_turn_start(1, "", author_id="bob")
     assert p.prefetch("cats", session_id="second") == ""
     result = json.loads(
-        p.handle_tool_call("qdrant_memory_search", {"query": "cats"}, session_id="second")
+        p.handle_tool_call("hermes_recall_search", {"query": "cats"}, session_id="second")
     )
     assert result["memories"] == []
     p.on_memory_write("add", "user", "dogs preferred")

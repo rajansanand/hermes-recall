@@ -1,7 +1,7 @@
 """Expose durable decision counts and recall metrics while providers are active."""
 
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope
 
 from .helpers import runtime
 from .test_provider import provider
@@ -26,7 +26,7 @@ def test_prefetch_rate_is_visible_before_shutdown(tmp_path):
     p = provider(tmp_path)
     try:
         p.prefetch("cats")
-        p.queue_prefetch("cats")
+        p._prepare_recall("cats")
         assert p.wait_idle()
         p.prefetch("cats")
         reader = Ledger(tmp_path, p.ledger.collection)

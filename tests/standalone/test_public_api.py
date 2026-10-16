@@ -5,13 +5,13 @@ import json
 
 import pytest
 
-from qdrant_memory import mcp_server, standalone
-from qdrant_memory.config import ledger_namespace
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, payload, point_id
-from qdrant_memory.ownership import WriterLease
-from qdrant_memory.reset import begin_destination_reset, begin_scope_delete, scope_delete_intent
-from qdrant_memory.standalone import (
+from hermes_recall import mcp_server, standalone
+from hermes_recall.config import ledger_namespace
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, payload, point_id
+from hermes_recall.ownership import WriterLease
+from hermes_recall.reset import begin_destination_reset, begin_scope_delete, scope_delete_intent
+from hermes_recall.standalone import (
     OperatorPathOutsideRootError,
     call_tool,
     load_standalone_config,
@@ -42,7 +42,7 @@ def test_public_cli_json_crud_and_failure_boundaries(profile, monkeypatch, capsy
     monkeypatch.chdir(home)
     args = ["--home", str(home)]
     assert standalone.main([*args, "status"]) == 0
-    assert json.loads(capsys.readouterr().out)["collection"] == "qdrant_memory"
+    assert json.loads(capsys.readouterr().out)["collection"] == "hermes_recall"
     assert standalone.main([*args, "init"]) == 0
     capsys.readouterr()
     assert standalone.main([*args, "add", "--text", "Public API durable fact"]) == 0
@@ -90,11 +90,11 @@ def test_cli_nonready_and_mcp_startup_output(profile, monkeypatch, capsys):
 @pytest.mark.parametrize(
     "name,arguments",
     [
-        ("qdrant_memory_migrate", {}),
-        ("qdrant_memory_add", []),
-        ("qdrant_memory_add", {"text": "bad", "source_json": "private-source.json"}),
-        ("qdrant_memory_add", {}),
-        ("qdrant_memory_add", {"text": {"secret": "must-not-echo"}}),
+        ("hermes_recall_migrate", {}),
+        ("hermes_recall_add", []),
+        ("hermes_recall_add", {"text": "bad", "source_json": "private-source.json"}),
+        ("hermes_recall_add", {}),
+        ("hermes_recall_add", {"text": {"secret": "must-not-echo"}}),
     ],
 )
 def test_public_schema_denial_never_admits_work(profile, name, arguments):
@@ -134,7 +134,7 @@ def test_public_startup_guards_release_owned_resources(profile, intent):
 def test_recovery_failure_closes_store_embedder_and_lease(profile, monkeypatch):
     """A failed prepared mutation remains durable and startup cleanup frees ownership."""
     home, _ = profile
-    path = home / "qdrant-memory.json"
+    path = home / "hermes-recall.json"
     cfg = json.loads(path.read_text())
     cfg["embedding"]["document_instruction"] = "doc:"
     cfg["write"] = {"max_attempts": 2, "backoff_base_seconds": 0, "backoff_max_seconds": 0}
@@ -177,7 +177,24 @@ def test_recovery_failure_closes_store_embedder_and_lease(profile, monkeypatch):
 
 def test_official_inprocess_client_scoped_tools_and_path_denial(profile):
     """Real SDK memory transport reaches production handlers and rejects file arguments."""
-    from mcp.shared.memory import create_connected_server_and_client_session
+    from contextlib import asynccontextmanager
+
+    import anyio
+    from mcp import ClientSession
+    from mcp.shared.memory import create_client_server_memory_streams
+
+    @asynccontextmanager
+    async def create_connected_server_and_client_session(server):
+        """Connect both real MCP 2 protocol loops over SDK memory streams."""
+        async with create_client_server_memory_streams() as (client_streams, server_streams):
+            async with anyio.create_task_group() as tasks:
+                tasks.start_soon(
+                    server.run, *server_streams, server.create_initialization_options()
+                )
+                async with ClientSession(*client_streams) as session:
+                    await session.initialize()
+                    yield session
+                await client_streams[1].aclose()
 
     command(profile, "init")
     with open_runtime(profile[0]) as runtime:
@@ -188,30 +205,30 @@ def test_official_inprocess_client_scoped_tools_and_path_denial(profile):
             async with create_connected_server_and_client_session(server) as client:
                 tools = (await client.list_tools()).tools
                 assert len(tools) == 4
-                result = await client.call_tool("qdrant_memory_add", {"text": "SDK memory fact"})
+                result = await client.call_tool("hermes_recall_add", {"text": "SDK memory fact"})
                 identifier = json.loads(result.content[0].text)["id"]
-                assert not result.isError
+                assert not result.is_error
                 assert not (
-                    await client.call_tool("qdrant_memory_search", {"query": "SDK memory fact"})
-                ).isError
+                    await client.call_tool("hermes_recall_search", {"query": "SDK memory fact"})
+                ).is_error
                 assert not (
                     await client.call_tool(
-                        "qdrant_memory_update", {"id": identifier, "text": "SDK update"}
+                        "hermes_recall_update", {"id": identifier, "text": "SDK update"}
                     )
-                ).isError
+                ).is_error
                 for name, arguments in [
-                    ("qdrant_memory_migrate", {"source_json": "/private/source.json"}),
-                    ("qdrant_memory_add", {"text": "bad", "source_json": "/private/source.json"}),
-                    ("qdrant_memory_search", {"query": "bad", "output": "/private/source.json"}),
-                    ("qdrant_memory_add", {"text": {"secret": "must-not-echo"}}),
+                    ("hermes_recall_migrate", {"source_json": "/private/source.json"}),
+                    ("hermes_recall_add", {"text": "bad", "source_json": "/private/source.json"}),
+                    ("hermes_recall_search", {"query": "bad", "output": "/private/source.json"}),
+                    ("hermes_recall_add", {"text": {"secret": "must-not-echo"}}),
                 ]:
                     result = await client.call_tool(name, arguments)
-                    assert result.isError
+                    assert result.is_error
                     assert "private/source.json" not in result.content[0].text
                     assert "must-not-echo" not in result.content[0].text
                 assert not (
-                    await client.call_tool("qdrant_memory_delete", {"id": identifier})
-                ).isError
+                    await client.call_tool("hermes_recall_delete", {"id": identifier})
+                ).is_error
 
         asyncio.run(check())
 
@@ -319,9 +336,9 @@ def test_public_mcp_main_uses_official_protocol_and_closes_session(profile, monk
                     async with ClientSession(*client_streams) as session:
                         await session.initialize()
                         result = await session.call_tool(
-                            "qdrant_memory_add", {"text": "Entry boundary fact"}
+                            "hermes_recall_add", {"text": "Entry boundary fact"}
                         )
-                        assert not result.isError
+                        assert not result.is_error
                     await client_streams[1].aclose()
 
                 tasks.start_soon(client)

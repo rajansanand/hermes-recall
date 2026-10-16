@@ -9,14 +9,14 @@ from pathlib import Path
 import pytest
 from qdrant_client import QdrantClient
 
-from qdrant_memory import cli
-from qdrant_memory.migration import (
+from hermes_recall import cli
+from hermes_recall.migration import (
     MigrationIncompleteError,
     MigrationSupersededError,
     migrate,
     verify_manifest,
 )
-from qdrant_memory.models import Scope
+from hermes_recall.models import Scope
 
 from .helpers import config, runtime
 
@@ -178,7 +178,7 @@ def test_migration_hard_exit_then_resume(tmp_path):
     code = """
 import os, sys
 from qdrant_client import QdrantClient
-from qdrant_memory.migration import migrate
+from hermes_recall.migration import migrate
 from tests.helpers import runtime
 rt = runtime(sys.argv[1], client=QdrantClient(path=sys.argv[2]))
 rt.store.upsert = lambda records: os._exit(73)

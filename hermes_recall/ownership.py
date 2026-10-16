@@ -31,7 +31,7 @@ class WriterLease:
         # runtime dependencies before Hermes has prepared them.
         import portalocker
 
-        directory = Path(home) / "qdrant-memory"
+        directory = Path(home) / "hermes-recall"
         directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         descriptor = os.open(
             directory / (digest(namespace) + ".writer.lock"), os.O_CREAT | os.O_RDWR, 0o600

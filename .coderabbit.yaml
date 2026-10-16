@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-language: zh-CN
+language: en-US
 reviews:
   profile: assertive
   request_changes_workflow: true
@@ -10,7 +10,7 @@ reviews:
     enabled: true
     drafts: true
   path_instructions:
-    - path: qdrant_memory/**
+    - path: hermes_recall/**
       instructions: >-
         Review scope isolation, durable ledger ordering and crash replay, prompt
         caching, API key redaction, exact-ID mutation and read-only source

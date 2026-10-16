@@ -2,8 +2,8 @@
 
 import pytest
 
-from qdrant_memory.migration import map_record, migrate
-from qdrant_memory.models import Scope
+from hermes_recall.migration import map_record, migrate
+from hermes_recall.models import Scope
 
 from .helpers import runtime
 

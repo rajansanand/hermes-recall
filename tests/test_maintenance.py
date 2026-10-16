@@ -6,14 +6,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from qdrant_memory.cli import (
+from hermes_recall.cli import (
     InitializationChoiceRequiredError,
     existing_collection_action,
     main,
     register_cli,
     run,
 )
-from qdrant_memory.migration import migrate
+from hermes_recall.migration import migrate
 
 from .helpers import Embedder, config, runtime
 from .test_provider import provider
@@ -27,18 +27,18 @@ def test_missing_collection_has_actionable_error_without_creation(
     from qdrant_client import QdrantClient
     from utils import atomic_json_write
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     parser = argparse.ArgumentParser()
     register_cli(parser)
     assert main(parser.parse_args([command])) == 1
     error = json.loads(capsys.readouterr().out)["error"]
     assert error["code"] == "collection_not_initialized"
-    assert "hermes qdrant-memory init" in error["message"]
+    assert "hermes hermes-recall init" in error["message"]
     assert error["retryable"] is False
-    assert not (tmp_path / "qdrant-memory" / "state.db").exists()
-    client = QdrantClient(path=str(tmp_path / "qdrant-memory" / "qdrant"))
+    assert not (tmp_path / "hermes-recall" / "state.db").exists()
+    client = QdrantClient(path=str(tmp_path / "hermes-recall" / "qdrant"))
     try:
         assert not client.collection_exists(config()["qdrant"]["collection"])
     finally:
@@ -52,10 +52,10 @@ def test_init_bootstraps_collection_and_preserves_existing_memories(tmp_path, mo
     from qdrant_client import QdrantClient, models
     from utils import atomic_json_write
 
-    from qdrant_memory.models import Scope, payload
+    from hermes_recall.models import Scope, payload
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     parser = argparse.ArgumentParser()
     register_cli(parser)
     args = parser.parse_args(["init", "--existing", "use"])
@@ -65,7 +65,7 @@ def test_init_bootstraps_collection_and_preserves_existing_memories(tmp_path, mo
     assert first["points_count"] == 0
     assert run(parser.parse_args(["doctor"]), home=tmp_path)["ok"]
     assert run(parser.parse_args(["verify"]), home=tmp_path)["ok"]
-    client = QdrantClient(path=str(tmp_path / "qdrant-memory" / "qdrant"))
+    client = QdrantClient(path=str(tmp_path / "hermes-recall" / "qdrant"))
     memory = payload("keep", Scope("user", "hermes"), "manual", "session")
     try:
         client.upsert(
@@ -76,22 +76,22 @@ def test_init_bootstraps_collection_and_preserves_existing_memories(tmp_path, mo
         client.close()
     stream = io.StringIO("\n")
     monkeypatch.setattr(stream, "isatty", lambda: True)
-    monkeypatch.setattr("qdrant_memory.cli.sys.stdin", stream)
+    monkeypatch.setattr("hermes_recall.cli.sys.stdin", stream)
     assert run(parser.parse_args(["init"]), home=tmp_path)["action"] == "use"
     assert run(args, home=tmp_path)["points_count"] == 1
     incompatible = Embedder()
     incompatible.fingerprint = "different-pipeline"
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: incompatible)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: incompatible)
     with pytest.raises(ValueError, match="fingerprint mismatch"):
         run(args, home=tmp_path)
-    client = QdrantClient(path=str(tmp_path / "qdrant-memory" / "qdrant"))
+    client = QdrantClient(path=str(tmp_path / "hermes-recall" / "qdrant"))
     try:
         assert client.retrieve(config()["qdrant"]["collection"], ids=[42])[0].payload == memory
     finally:
         client.close()
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     assert run(args, home=tmp_path)["ok"]
-    client = QdrantClient(path=str(tmp_path / "qdrant-memory" / "qdrant"))
+    client = QdrantClient(path=str(tmp_path / "hermes-recall" / "qdrant"))
     client.upsert(
         config()["qdrant"]["collection"],
         points=[models.PointStruct(id=43, vector={"dense": [1.0, 0.0, 0.0]}, payload={})],
@@ -109,7 +109,7 @@ def test_cli_does_not_expose_arbitrary_value_error_messages(monkeypatch, capsys)
     def fail(*args, **kwargs):
         raise ValueError("credential-sentinel")
 
-    monkeypatch.setattr("qdrant_memory.cli.run", fail)
+    monkeypatch.setattr("hermes_recall.cli.run", fail)
     assert main(SimpleNamespace(qdrant_command="doctor")) == 1
     output = capsys.readouterr().out
     assert "credential-sentinel" not in output
@@ -123,7 +123,7 @@ def test_existing_collection_prompt_defaults_to_use(monkeypatch, capsys, answer,
 
     stream = io.StringIO(answer)
     monkeypatch.setattr(stream, "isatty", lambda: True)
-    monkeypatch.setattr("qdrant_memory.cli.sys.stdin", stream)
+    monkeypatch.setattr("hermes_recall.cli.sys.stdin", stream)
     assert existing_collection_action(SimpleNamespace(existing=None), "notes") == expected
     assert "'notes'" in capsys.readouterr().err
 
@@ -135,7 +135,7 @@ def test_existing_collection_requires_valid_confirmation(monkeypatch, answer, tt
 
     stream = io.StringIO(answer)
     monkeypatch.setattr(stream, "isatty", lambda: tty)
-    monkeypatch.setattr("qdrant_memory.cli.sys.stdin", stream)
+    monkeypatch.setattr("hermes_recall.cli.sys.stdin", stream)
     with pytest.raises(InitializationChoiceRequiredError):
         existing_collection_action(SimpleNamespace(existing=None), "notes")
 
@@ -147,11 +147,11 @@ def test_clear_rebuilds_incompatible_collection_and_clears_only_target_ledger(
     from qdrant_client import QdrantClient, models
     from utils import atomic_json_write
 
-    from qdrant_memory.config import ledger_namespace, load_config
-    from qdrant_memory.ledger import Ledger
+    from hermes_recall.config import ledger_namespace, load_config
+    from hermes_recall.ledger import Ledger
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     cfg = load_config(tmp_path)
     client = QdrantClient(path=cfg["qdrant"]["path"])
     client.create_collection(
@@ -177,7 +177,7 @@ def test_clear_rebuilds_incompatible_collection_and_clears_only_target_ledger(
         run(parser.parse_args(["init", "--existing", "use"]), home=tmp_path)
     broken = Embedder()
     monkeypatch.setattr(broken, "embed_documents", lambda texts: [[0.0, 0.0, 0.0]])
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: broken)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: broken)
     with pytest.raises(ValueError):
         run(parser.parse_args(["init", "--existing", "clear"]), home=tmp_path)
     client = QdrantClient(path=cfg["qdrant"]["path"])
@@ -186,7 +186,7 @@ def test_clear_rebuilds_incompatible_collection_and_clears_only_target_ledger(
     ledger = Ledger(tmp_path, ledger_namespace(cfg))
     assert ledger.rows("events") and ledger.rows("operations")
     ledger.close()
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     result = run(parser.parse_args(["init", "--existing", "clear"]), home=tmp_path)
     assert result["ok"] and result["action"] == "clear"
     assert result["points_count"] == 0
@@ -209,8 +209,8 @@ def test_maintenance_commands_against_real_embedded_store(tmp_path, monkeypatch)
     # CLI must see the same explicit configuration and private profile path.
     from utils import atomic_json_write
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     for command in ("status", "stats", "doctor", "verify", "retry"):
         result = run(SimpleNamespace(qdrant_command=command, collection=None), home=tmp_path)
         assert result.get("ok", True)
@@ -235,13 +235,13 @@ def test_invalid_migration_retains_sanitized_error_manifest(tmp_path):
 @pytest.mark.parametrize("command", ["init", "retry"])
 def test_cli_reports_held_writer_lock_before_service_access(tmp_path, monkeypatch, capsys, command):
     """An active writer blocks mutations with a useful, destination-free diagnostic."""
-    from qdrant_memory.ownership import WriterLease
+    from hermes_recall.ownership import WriterLease
 
     cfg = config(qdrant={"mode": "cloud", "url": "https://private.example"})
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
-    monkeypatch.setattr("qdrant_memory.cli.load_config", lambda *args, **kwargs: cfg)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.load_config", lambda *args, **kwargs: cfg)
     monkeypatch.setattr(
-        "qdrant_memory.cli.build_embedder",
+        "hermes_recall.cli.build_embedder",
         lambda *args: pytest.fail("A blocked writer must not initialize services"),
     )
     parser = argparse.ArgumentParser()
@@ -256,7 +256,7 @@ def test_cli_reports_held_writer_lock_before_service_access(tmp_path, monkeypatc
         assert "Stop that runtime" in error["message"]
         assert not error["retryable"]
         assert "private.example" not in output and str(tmp_path) not in output
-        assert not (tmp_path / "qdrant-memory" / "state.db").exists()
+        assert not (tmp_path / "hermes-recall" / "state.db").exists()
     finally:
         lease.close()
     replacement = WriterLease.for_config(tmp_path, cfg)

@@ -10,10 +10,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from qdrant_memory.config import embedding_config, load_config
-from qdrant_memory.embedding import build_embedder
-from qdrant_memory.models import Scope, normalize, payload, point_id
-from qdrant_memory.qdrant_store import QdrantStore, build_client
+from hermes_recall.config import embedding_config, load_config
+from hermes_recall.embedding import build_embedder
+from hermes_recall.models import Scope, normalize, payload, point_id
+from hermes_recall.qdrant_store import QdrantStore, build_client
 
 
 def validate_dataset(dataset):

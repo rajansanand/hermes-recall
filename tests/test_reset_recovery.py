@@ -12,12 +12,12 @@ import utils
 from qdrant_client import QdrantClient, models
 from utils import atomic_json_write
 
-from qdrant_memory import cli
-from qdrant_memory.config import ledger_namespace, load_config
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.provider import QdrantMemoryProvider
-from qdrant_memory.qdrant_store import QdrantStore, _close_embedded_collection_storage
-from qdrant_memory.reset import (
+from hermes_recall import cli
+from hermes_recall.config import ledger_namespace, load_config
+from hermes_recall.ledger import Ledger
+from hermes_recall.provider import QdrantMemoryProvider
+from hermes_recall.qdrant_store import QdrantStore, _close_embedded_collection_storage
+from hermes_recall.reset import (
     ResetRecoveryRequiredError,
     begin_destination_reset,
     has_pending_reset,
@@ -28,7 +28,7 @@ from tests.helpers import LLM, Embedder, config
 def reset_fixture(home):
     """Create a populated destination plus unrelated durable ledger state."""
     atomic_json_write(
-        home / "qdrant-memory.json",
+        home / "hermes-recall.json",
         config(qdrant={"path": str(home / "qdrant")}),
         mode=0o600,
     )
@@ -141,7 +141,7 @@ def test_provider_closes_replacement_client_after_reset(tmp_path, monkeypatch):
         original_close()
 
     monkeypatch.setattr(original_client, "close", tracked_original_close)
-    from qdrant_memory import qdrant_store
+    from hermes_recall import qdrant_store
 
     build_client = qdrant_store.build_client
     replacement_clients = []
@@ -186,7 +186,7 @@ def test_cli_reports_actionable_reset_recovery_error(monkeypatch, capsys):
     assert cli.main(parse_cli("stats")) == 1
     error = json.loads(capsys.readouterr().out)["error"]
     assert error["code"] == "reset_recovery_required"
-    assert "Rerun hermes qdrant-memory init" in error["message"]
+    assert "Rerun hermes hermes-recall init" in error["message"]
 
 
 def crash_reset_process(home, cutpoint, *, resume=False):
@@ -198,9 +198,9 @@ sys.path.insert(0, sys.argv[4])
 sys.path.insert(0, sys.argv[3])
 from argparse import ArgumentParser
 from qdrant_client import QdrantClient
-import qdrant_memory.cli as cli
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.qdrant_store import QdrantStore
+import hermes_recall.cli as cli
+from hermes_recall.ledger import Ledger
+from hermes_recall.qdrant_store import QdrantStore
 from tests.helpers import Embedder
 
 cutpoint = sys.argv[2]
@@ -452,7 +452,7 @@ def test_reset_failures_preserve_data_or_a_resumable_intent(
 
 def test_provider_resumes_reset_before_queuing_ledger_replay(tmp_path, monkeypatch):
     """Provider recovery must observe reset completion before it queues replay."""
-    from qdrant_memory.provider import QdrantMemoryProvider
+    from hermes_recall.provider import QdrantMemoryProvider
 
     cfg = reset_fixture(tmp_path)
     ledger = Ledger(tmp_path, ledger_namespace(cfg))

@@ -3,41 +3,39 @@
 import argparse
 import json
 import logging
-from pathlib import Path
 
 from plugins.memory import discover_plugin_cli_commands, find_provider_dir, load_memory_provider
 
-from qdrant_memory.cli import register_cli, run
-from qdrant_memory.extraction import Extractor
+from hermes_recall.cli import register_cli, run
+from hermes_recall.extraction import Extractor
 
-from .helpers import LLM
+from .helpers import LLM, copy_plugin
 
 
 def test_real_directory_discovery_and_cli(tmp_path, monkeypatch, caplog):
     """Verify real directory discovery and cli."""
     home = tmp_path / "home"
     (home / "plugins").mkdir(parents=True)
-    root = Path(__file__).resolve().parents[1]
-    (home / "plugins" / "qdrant-memory").symlink_to(root, target_is_directory=True)
+    copy_plugin(home / "plugins" / "hermes-recall")
     (home / "config.yaml").write_text(
-        "memory:\n  provider: qdrant-memory\nplugins:\n  isolation: in_process\n"
+        "memory:\n  provider: hermes-recall\nplugins:\n  isolation: in_process\n"
     )
     monkeypatch.setenv("HERMES_HOME", str(home))
-    assert find_provider_dir("qdrant-memory") == home / "plugins" / "qdrant-memory"
+    assert find_provider_dir("hermes-recall") == home / "plugins" / "hermes-recall"
     with caplog.at_level(logging.DEBUG):
-        provider = load_memory_provider("qdrant-memory")
+        provider = load_memory_provider("hermes-recall")
     assert provider is not None, caplog.text
-    assert provider.name == "qdrant-memory"
+    assert provider.name == "hermes-recall"
     assert provider.context.llm is not None
     assert {s["name"] for s in provider.get_tool_schemas()} == {
-        "qdrant_memory_search",
-        "qdrant_memory_add",
-        "qdrant_memory_update",
-        "qdrant_memory_delete",
+        "hermes_recall_search",
+        "hermes_recall_add",
+        "hermes_recall_update",
+        "hermes_recall_delete",
     }
     commands = discover_plugin_cli_commands()
-    assert any(c["name"] == "qdrant-memory" for c in commands)
-    command = next(c for c in commands if c["name"] == "qdrant-memory")
+    assert any(c["name"] == "hermes-recall" for c in commands)
+    command = next(c for c in commands if c["name"] == "hermes-recall")
     parser = argparse.ArgumentParser()
     command["setup_fn"](parser)
     assert command["handler_fn"](parser.parse_args(["status"])) == 0
@@ -61,5 +59,5 @@ def test_llm_inherit_and_task_routing():
     event = {"user": "cats", "assistant": "ack"}
     Extractor(llm, {"mode": "inherit"}).extract(event)
     assert not any(k in llm.calls[-1] for k in ("task", "provider", "model"))
-    Extractor(llm, {"mode": "task", "task": "qdrant_memory_extraction"}).extract(event)
-    assert llm.calls[-1]["task"] == "qdrant_memory_extraction"
+    Extractor(llm, {"mode": "task", "task": "hermes_recall_extraction"}).extract(event)
+    assert llm.calls[-1]["task"] == "hermes_recall_extraction"

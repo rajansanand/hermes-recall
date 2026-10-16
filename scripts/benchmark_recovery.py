@@ -17,10 +17,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from qdrant_memory.config import DEFAULTS
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, payload
-from qdrant_memory.runtime import Runtime
+from hermes_recall.config import DEFAULTS
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, payload
+from hermes_recall.runtime import Runtime
 
 COLLECTION = "synthetic-recovery-benchmark"
 

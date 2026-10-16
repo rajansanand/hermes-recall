@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from qdrant_memory.migration import (
+from hermes_recall.migration import (
     create_manifest,
     map_record,
     migrate,
@@ -12,8 +12,8 @@ from qdrant_memory.migration import (
     verify_collection,
     verify_manifest,
 )
-from qdrant_memory.models import Scope
-from qdrant_memory.tools import dispatch
+from hermes_recall.models import Scope
+from hermes_recall.tools import dispatch
 
 from .helpers import runtime
 
@@ -98,7 +98,7 @@ def test_fresh_migration_after_delete_preserves_source_time(tmp_path, updated_at
         first = migrate(rt, [original], "mem0-json", "fixture", "first", verify=True)
         identifier = next(iter(first["records"]))
         scope = Scope(**first["records"][identifier]["scope"])
-        dispatch(rt, "qdrant_memory_delete", {"id": identifier}, scope, "session")
+        dispatch(rt, "hermes_recall_delete", {"id": identifier}, scope, "session")
 
         records = [{**original, "id": source_id}]
         imported = migrate(rt, records, "mem0-json", "fixture", "second", verify=True)
@@ -142,7 +142,7 @@ def test_pre_delete_migration_is_fenced_even_with_future_source_time(tmp_path):
                 ("2000-01-01T00:00:00Z", key),
             )
         added = rt.add("cats preferred", scope, session_id="session")
-        dispatch(rt, "qdrant_memory_delete", {"id": added["id"]}, scope, "session")
+        dispatch(rt, "hermes_recall_delete", {"id": added["id"]}, scope, "session")
         rt.commit([key])
         assert rt.ledger.row("operations", key)["status"] == "SUPERSEDED"
         assert rt.store.get(identifier, scope) is None

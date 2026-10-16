@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from qdrant_memory.qdrant_store import build_client
+from hermes_recall.qdrant_store import build_client
 
 from .helpers import config
 
@@ -25,7 +25,7 @@ def test_remote_backend_client_contract(mode, url, monkeypatch):
 
 def test_collection_partition_keeps_failed_writes_from_other_targets(tmp_path):
     """Verify collection partition keeps failed writes from other targets."""
-    from qdrant_memory.ledger import Ledger
+    from hermes_recall.ledger import Ledger
 
     a, b = Ledger(tmp_path, "a"), Ledger(tmp_path, "b")
     key = a.enqueue_operation("one", "DELETE", {}, source_version="one")
@@ -38,7 +38,7 @@ def test_collection_partition_keeps_failed_writes_from_other_targets(tmp_path):
 
 def test_ledger_destination_namespace_changes_with_endpoint():
     """Verify ledger destination namespace changes with endpoint."""
-    from qdrant_memory.config import ledger_namespace
+    from hermes_recall.config import ledger_namespace
 
     a = config(qdrant={"mode": "server", "url": "http://one.example"})
     b = config(qdrant={"mode": "server", "url": "http://two.example"})
@@ -47,7 +47,7 @@ def test_ledger_destination_namespace_changes_with_endpoint():
 
 def test_embedded_ledger_namespace_preserves_legacy_hash_input(tmp_path):
     """Embedded destination hashes stay compatible with existing ledger rows."""
-    from qdrant_memory.config import ledger_namespace
+    from hermes_recall.config import ledger_namespace
 
     qdrant = {
         "mode": "embedded",
@@ -62,7 +62,7 @@ def test_embedded_ledger_namespace_preserves_legacy_hash_input(tmp_path):
 
 def test_server_cloud_url_alias_resolves_to_same_ledger_namespace():
     """Server and Cloud mode pointing at the same host share one ledger namespace."""
-    from qdrant_memory.config import ledger_namespace
+    from hermes_recall.config import ledger_namespace
 
     server_cfg = config(qdrant={"mode": "server", "url": "https://example.com"})
     cloud_cfg = config(qdrant={"mode": "cloud", "url": "https://Example.com:443/"})
@@ -71,14 +71,14 @@ def test_server_cloud_url_alias_resolves_to_same_ledger_namespace():
 
 def test_ledger_replay_across_server_cloud_alias(tmp_path):
     """Pending operations survive a server-to-cloud mode switch with the same host."""
-    from qdrant_memory.config import ledger_namespace
+    from hermes_recall.config import ledger_namespace
 
     from .helpers import runtime
 
     server_cfg = config(qdrant={"mode": "server", "url": "https://host.example"})
     rt = runtime(tmp_path, cfg=server_cfg, ledger_namespace=ledger_namespace(server_cfg))
     try:
-        from qdrant_memory.models import Scope, payload, point_id
+        from hermes_recall.models import Scope, payload, point_id
 
         scope = Scope(**rt.cfg["scope"])
         text = "cat fact"

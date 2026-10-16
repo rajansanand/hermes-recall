@@ -8,12 +8,12 @@ from threading import Event
 import pytest
 from qdrant_client import QdrantClient
 
-from qdrant_memory import cli
-from qdrant_memory.config import ledger_namespace
-from qdrant_memory.migration import migrate
-from qdrant_memory.models import Scope
-from qdrant_memory.progress import MigrationProgress, report
-from qdrant_memory.qdrant_store import QdrantStore
+from hermes_recall import cli
+from hermes_recall.config import ledger_namespace
+from hermes_recall.migration import migrate
+from hermes_recall.models import Scope
+from hermes_recall.progress import MigrationProgress, report
+from hermes_recall.qdrant_store import QdrantStore
 
 from .helpers import Embedder, config, runtime
 
@@ -231,7 +231,7 @@ def test_cli_mixed_superseded_and_failed_completion(tmp_path, monkeypatch, capsy
 def test_reporter_throttles_and_ignores_closed_stderr(monkeypatch):
     """Record updates stay bounded and diagnostic failures do not abort migration."""
     current = [0.0]
-    monkeypatch.setattr("qdrant_memory.progress.time.monotonic", lambda: current[0])
+    monkeypatch.setattr("hermes_recall.progress.time.monotonic", lambda: current[0])
     progress = MigrationProgress()
     stream = io.StringIO()
     progress.stream = stream

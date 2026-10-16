@@ -114,7 +114,7 @@ Never remove WAL/SHM files from a live database. See the [recovery benchmark](re
 measured sizes and memory.
 
 Stop the agent and every embedded maintenance client before you copy state. Back up
-`qdrant-memory.json`, the `qdrant-memory` state directory (including SQLite sidecar
+`hermes-recall.json`, the `hermes-recall` state directory (including SQLite sidecar
 files if present), and the embedded Qdrant path if you configure it elsewhere.
 The ledger logically scrubs committed event bodies and committed/superseded operation
 bodies, except operations still needed by an incomplete migration manifest. Identity
@@ -137,16 +137,16 @@ backups.
 ## Retry and maintenance ownership
 
 If a collection clear does not finish, preserve the ledger. Rerun
-`hermes qdrant-memory init` with the same destination configuration (and the same
+`hermes hermes-recall init` with the same destination configuration (and the same
 `--collection` override, if used). The durable reset intent resumes the previously
 authorized destructive operation. It is not a request to reuse the remaining data.
 Other destination commands report `reset_recovery_required` until recovery completes.
 Keep every writer stopped through recovery. Then run `doctor`, `stats` and `verify`.
 
 ```bash
-hermes qdrant-memory stats
-hermes qdrant-memory retry
-hermes qdrant-memory verify
+hermes hermes-recall stats
+hermes hermes-recall retry
+hermes hermes-recall verify
 ```
 
 Failed raw events need the provider's trusted LLM context. Retry only requeues

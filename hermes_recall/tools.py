@@ -25,7 +25,7 @@ def schemas():
     }
     return [
         {
-            "name": "qdrant_memory_" + name,
+            "name": "hermes_recall_" + name,
             "description": description,
             "parameters": {
                 "type": "object",
@@ -41,7 +41,7 @@ def schemas():
 def dispatch(runtime, name, args, scope, session_id):
     """Execute a scoped tool under the shared lock with exact-ID authorization."""
     with runtime.lock:
-        if name == "qdrant_memory_search":
+        if name == "hermes_recall_search":
             filters = {"category": args["category"]} if args.get("category") else None
             return {
                 "memories": [
@@ -49,15 +49,15 @@ def dispatch(runtime, name, args, scope, session_id):
                     for h in runtime.store.search(args["query"], scope, filters)
                 ]
             }
-        if name == "qdrant_memory_add":
+        if name == "hermes_recall_add":
             return runtime.add(args["text"], scope, session_id=session_id)
-        if name not in {"qdrant_memory_update", "qdrant_memory_delete"}:
+        if name not in {"hermes_recall_update", "hermes_recall_delete"}:
             raise ValueError("Unknown memory tool")
         # An ID is not authorization: retrieve and check scope before preparing a mutation.
         old = runtime.store.get(args["id"], scope)
         if old is None:
             raise ValueError("Memory ID not found in caller scope")
-        if name == "qdrant_memory_delete":
+        if name == "hermes_recall_delete":
             key = runtime.operation(
                 str(old.id),
                 "DELETE",

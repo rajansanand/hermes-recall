@@ -107,7 +107,7 @@ def test_host_switch_clears_transients_and_preserves_durable_memory(tmp_path, mo
         p.sync_turn("cats preferred", "ack")
         assert p.wait_idle()
         p.on_turn_start(2, "", author_id="bob")
-        p.queue_prefetch("cats")
+        p._prepare_recall("cats")
         assert p.wait_idle()
         target = "first" if mode in {"reset", "rewind"} else "second"
         manager.on_session_switch(

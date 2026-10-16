@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from qdrant_memory.cli import migration_source, register_cli
-from qdrant_memory.config import load_config
-from qdrant_memory.migration import source_settings
+from hermes_recall.cli import migration_source, register_cli
+from hermes_recall.config import load_config
+from hermes_recall.migration import source_settings
 
 
 @pytest.mark.parametrize(
@@ -39,11 +39,11 @@ def test_same_collection_requires_distinct_endpoint(tmp_path, monkeypatch, sourc
     client_settings = []
     client = SimpleNamespace(close=lambda: None)
     monkeypatch.setattr(
-        "qdrant_memory.cli.source_client",
+        "hermes_recall.cli.source_client",
         lambda source_q: client_settings.append(source_q) or client,
     )
     monkeypatch.setattr(
-        "qdrant_memory.cli.read_qdrant_records", lambda *args: reads.append(args[1]) or []
+        "hermes_recall.cli.read_qdrant_records", lambda *args: reads.append(args[1]) or []
     )
     if allowed:
         records, kind, identifier, checksum = migration_source(args, cfg, tmp_path)
@@ -66,7 +66,7 @@ def test_source_endpoint_precedes_target_environment_settings(tmp_path, monkeypa
         json.dumps({"vector_store": {"config": {"host": "source.example.com", "port": 7443}}})
     )
     monkeypatch.setattr(
-        "qdrant_memory.config.secret",
+        "hermes_recall.config.secret",
         lambda name: {
             "QDRANT_URL": "https://target.example.com",
             "QDRANT_API_KEY": "target-secret",
@@ -128,7 +128,7 @@ def test_embedded_source_path_is_not_replaced_by_target_endpoint(tmp_path):
 
 def test_reserved_vector_reuse_is_explicit_and_refused(tmp_path, monkeypatch, capsys):
     """The advertised reserved option cannot silently perform vector reuse."""
-    from qdrant_memory.cli import main
+    from hermes_recall.cli import main
 
     parser = argparse.ArgumentParser()
     register_cli(parser)

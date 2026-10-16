@@ -11,34 +11,38 @@ def create_server(runtime):
     """Bind the four fixed-scope tools to an official SDK server instance."""
     import anyio
     from mcp.server import Server
-    from mcp.types import CallToolResult, TextContent, Tool
+    from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
-    server = Server("qdrant-memory")
-
-    @server.list_tools()
-    async def list_tools():
+    async def list_tools(ctx, params):
         """Advertise only the shared explicit-memory schemas."""
-        return [
-            Tool(name=item["name"], description=item["description"], inputSchema=item["parameters"])
-            for item in schemas()
-        ]
+        return ListToolsResult(
+            tools=[
+                Tool(
+                    name=item["name"],
+                    description=item["description"],
+                    input_schema=item["parameters"],
+                )
+                for item in schemas()
+            ]
+        )
 
-    @server.call_tool(validate_input=False)
-    async def invoke(name, arguments):
+    async def invoke(ctx, params):
         """Validate and dispatch without echoing sensitive invalid arguments."""
         try:
-            result = await anyio.to_thread.run_sync(lambda: call_tool(runtime, name, arguments))
+            result = await anyio.to_thread.run_sync(
+                lambda: call_tool(runtime, params.name, params.arguments)
+            )
             return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps(result, ensure_ascii=False))],
-                isError=False,
+                is_error=False,
             )
         except Exception as exc:
             return CallToolResult(
                 content=[TextContent(type="text", text=json.dumps({"error": safe_error(exc)}))],
-                isError=True,
+                is_error=True,
             )
 
-    return server
+    return Server("hermes-recall", on_list_tools=list_tools, on_call_tool=invoke)
 
 
 def serve(home):

@@ -1,10 +1,10 @@
-name: qdrant-memory
-version: 0.2.1
+name: hermes-recall
+version: 0.1.0
 description: Durable native memory with Qdrant and Hermes LLM extraction
 manifest_version: 2
 author: Kang Liu
 license: MIT
-homepage: https://github.com/cnkang/hermes-plugin-qdrant-memory
+homepage: https://github.com/rajansanand/hermes-recall
 tags: [memory, qdrant, vector-search]
 python_dependencies:
   - "qdrant-client>=1.15,<2"

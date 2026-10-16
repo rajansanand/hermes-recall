@@ -4,7 +4,7 @@ See [standalone CLI and MCP](standalone.md) for the additive host-independent
 interface, shared durable core, fixed operator scope and its validation boundary.
 
 The plugin stays outside Hermes core. Directory discovery calls the root
-`register(ctx)`. Packaged discovery calls `qdrant_memory.register(ctx)`. Both use
+`register(ctx)`. Packaged discovery calls `hermes_recall.register(ctx)`. Both use
 the same provider factory. When the discovery collector lacks `llm`, the factory
 creates a named Hermes `PluginContext` and registers extraction's auxiliary task
 there. Model selection, credentials and operator trust remain host-owned.

@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, payload
-from qdrant_memory.runtime import Runtime
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, payload
+from hermes_recall.runtime import Runtime
 
 from .helpers import config, runtime
 
@@ -201,8 +201,8 @@ def test_hard_exit_between_recovery_batches(tmp_path):
 import os, sys
 from types import SimpleNamespace
 from tests.helpers import config
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.runtime import Runtime
+from hermes_recall.ledger import Ledger
+from hermes_recall.runtime import Runtime
 ledger = Ledger(sys.argv[1])
 store = SimpleNamespace(upsert=lambda rows: None, delete=lambda ids: None)
 rt = Runtime(config(), store, ledger)

@@ -5,18 +5,18 @@ import json
 
 import pytest
 
-from qdrant_memory.cli import (
+from hermes_recall.cli import (
     DeleteConfirmationRequiredError,
     ScopeSelectionError,
     main,
     register_cli,
     run,
 )
-from qdrant_memory.config import ledger_namespace, load_config
-from qdrant_memory.inventory import ExportPublicationUnsupportedError, ExportTargetExistsError
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, payload
-from qdrant_memory.reset import (
+from hermes_recall.config import ledger_namespace, load_config
+from hermes_recall.inventory import ExportPublicationUnsupportedError, ExportTargetExistsError
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, payload
+from hermes_recall.reset import (
     ScopeDeleteLegacyIntentError,
     ScopeDeleteRecoveryRequiredError,
     ScopeDeleteRefusedError,
@@ -33,8 +33,8 @@ def prepared_home(tmp_path, monkeypatch):
     """Initialize an embedded destination through the CLI and return parser and config."""
     from utils import atomic_json_write
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     parser = argparse.ArgumentParser()
     register_cli(parser)
     assert run(parser.parse_args(["init", "--existing", "use"]), home=tmp_path)["ok"]
@@ -108,7 +108,7 @@ def test_export_round_trips_through_mem0_import(tmp_path, monkeypatch):
     result = run(parser.parse_args(["export", "--output", str(target)]), home=tmp_path)
     assert result["count"] == 2
     document = json.loads(target.read_text())
-    assert document["format"] == "qdrant-memory-export"
+    assert document["format"] == "hermes-recall-export"
     assert document["count"] == 2
     assert {r["memory"] for r in document["memories"]} == {"alpha fact", "beta fact"}
     record = next(r for r in document["memories"] if r["memory"] == "beta fact")
@@ -190,7 +190,7 @@ def test_repeated_resume_does_not_duplicate_fences(tmp_path, monkeypatch):
             (2, payload("alpha two", Scope("u1", None), "manual", "s1")),
         ],
     )
-    from qdrant_memory.qdrant_store import QdrantStore
+    from hermes_recall.qdrant_store import QdrantStore
 
     original = QdrantStore.delete_scope
     calls = {"count": 0}
@@ -401,7 +401,7 @@ def test_export_refuses_publication_without_hard_links(tmp_path, monkeypatch):
         """Simulate a filesystem that refuses hard links."""
         raise OSError("hard links unsupported")
 
-    monkeypatch.setattr("qdrant_memory.inventory.os.link", unsupported)
+    monkeypatch.setattr("hermes_recall.inventory.os.link", unsupported)
     target = tmp_path / "fallback.json"
     with pytest.raises(ExportPublicationUnsupportedError):
         run(parser.parse_args(["export", "--output", str(target)]), home=tmp_path)
@@ -451,9 +451,9 @@ def test_scope_delete_error_codes(tmp_path, monkeypatch, capsys):
     """CLI maps inventory and scope-deletion failures to stable sanitized codes."""
     from utils import atomic_json_write
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     parser = argparse.ArgumentParser()
     register_cli(parser)
     assert main(parser.parse_args(["init", "--existing", "use"])) == 0
@@ -495,7 +495,7 @@ def test_single_star_agent_delete_does_not_widen_on_resume(tmp_path, monkeypatch
             (4, payload("other user fact", Scope("u2", "*"), "manual", "s1")),
         ],
     )
-    from qdrant_memory.qdrant_store import QdrantStore
+    from hermes_recall.qdrant_store import QdrantStore
 
     original = QdrantStore.delete_scope
     calls = {"count": 0}
@@ -518,7 +518,7 @@ def test_single_star_agent_delete_does_not_widen_on_resume(tmp_path, monkeypatch
     recorded = json.loads(intents[0]["scope_json"])
     assert recorded["mode"] == "single_agent" and recorded["agent_id"] == "*"
     # Other commands fail closed with a stable exit status and error JSON.
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
     assert main(parser.parse_args(["list"])) == 1
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "scope_delete_recovery_required"
     resumed = run(parser.parse_args(["delete-all", "--confirm"]), home=tmp_path)
@@ -719,7 +719,7 @@ def test_corrupt_legacy_intent_is_refused_not_crashed(tmp_path, monkeypatch, cap
             home=tmp_path,
         )
     # The corrupt intent still fails closed with the legacy error code.
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
     assert main(parser.parse_args(["list"])) == 1
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "scope_delete_legacy_intent"
 
@@ -795,7 +795,7 @@ def test_all_agents_resume_after_partial_deletion(tmp_path, monkeypatch, capsys)
             (4, payload("other user fact", Scope("u2", None), "manual", "s1")),
         ],
     )
-    from qdrant_memory.qdrant_store import QdrantStore
+    from hermes_recall.qdrant_store import QdrantStore
 
     original = QdrantStore.delete_scope
     calls = {"count": 0}
@@ -816,7 +816,7 @@ def test_all_agents_resume_after_partial_deletion(tmp_path, monkeypatch, capsys)
     intents = scope_delete_intents(tmp_path, cfg)
     assert len(intents) == 1
     assert json.loads(intents[0]["scope_json"])["mode"] == "all_agents"
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
     assert main(parser.parse_args(["list"])) == 1
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "scope_delete_recovery_required"
     resumed = run(parser.parse_args(["delete-all", "--confirm"]), home=tmp_path)
@@ -858,9 +858,9 @@ def test_legacy_intent_error_codes(tmp_path, monkeypatch, capsys):
     """CLI maps ambiguous legacy intents to a stable sanitized code."""
     from utils import atomic_json_write
 
-    atomic_json_write(tmp_path / "qdrant-memory.json", config(), mode=0o600)
-    monkeypatch.setattr("qdrant_memory.cli.active_home", lambda: tmp_path)
-    monkeypatch.setattr("qdrant_memory.cli.build_embedder", lambda ctx, cfg: Embedder())
+    atomic_json_write(tmp_path / "hermes-recall.json", config(), mode=0o600)
+    monkeypatch.setattr("hermes_recall.cli.active_home", lambda: tmp_path)
+    monkeypatch.setattr("hermes_recall.cli.build_embedder", lambda ctx, cfg: Embedder())
     parser = argparse.ArgumentParser()
     register_cli(parser)
     assert main(parser.parse_args(["init", "--existing", "use"])) == 0

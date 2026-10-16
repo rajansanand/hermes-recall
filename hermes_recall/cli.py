@@ -195,12 +195,12 @@ def summary(manifest):
 def local_status(cfg, home):
     """Describe local configuration without contacting external services."""
     return {
-        "provider": "qdrant-memory",
+        "provider": "hermes-recall",
         "mode": cfg["qdrant"]["mode"],
         "collection": cfg["qdrant"]["collection"],
         "llm_mode": cfg["llm"]["mode"],
         "embedding": {k: embedding_config(cfg)[k] for k in ("provider", "model", "dimensions")},
-        "ledger_exists": (home / "qdrant-memory" / "state.db").exists(),
+        "ledger_exists": (home / "hermes-recall" / "state.db").exists(),
     }
 
 
@@ -436,9 +436,9 @@ def scoped_delete_all(runtime, args):
     else:
         intent_value = scope_delete_intent(user, agent, all_agents)
     identity = store.client.retrieve(store.collection, ids=[IDENTITY_ID], with_payload=True)
-    if not identity or not identity[0].payload.get("_qdrant_memory_schema"):
+    if not identity or not identity[0].payload.get("_hermes_recall_schema"):
         raise CollectionCompatibilityError(
-            "Collection has no trusted qdrant-memory schema identity; refusing scoped deletion"
+            "Collection has no trusted hermes-recall schema identity; refusing scoped deletion"
         )
     result = {
         "collection": store.collection,
@@ -691,7 +691,7 @@ def _initialize_target(args, store, home, cfg, pending_reset, resources, progres
     elif command in {"list", "export", "delete-all"}:
         if not store.client.collection_exists(store.collection):
             raise CollectionNotInitializedError(
-                "Collection does not exist; run hermes qdrant-memory init"
+                "Collection does not exist; run hermes hermes-recall init"
             )
     else:
         report(progress, "Initializing target collection and probing embedding")
@@ -816,12 +816,12 @@ def main(args):
         elif isinstance(exc, CollectionNotInitializedError):
             error.update(
                 code="collection_not_initialized",
-                message="Collection does not exist. Run hermes qdrant-memory init first.",
+                message="Collection does not exist. Run hermes hermes-recall init first.",
             )
         elif isinstance(exc, ResetRecoveryRequiredError):
             error.update(
                 code="reset_recovery_required",
-                message="Rerun hermes qdrant-memory init before using this destination.",
+                message="Rerun hermes hermes-recall init before using this destination.",
             )
         elif isinstance(exc, DeleteConfirmationRequiredError):
             error.update(
@@ -836,7 +836,7 @@ def main(args):
             error.update(
                 code="scope_delete_recovery_required",
                 message="An interrupted scoped deletion is pending. Rerun hermes "
-                "qdrant-memory delete-all with --confirm to resume it before using "
+                "hermes-recall delete-all with --confirm to resume it before using "
                 "this destination.",
             )
         elif isinstance(exc, ScopeDeleteLegacyIntentError):
@@ -878,10 +878,10 @@ def main(args):
                 message="Collection is incompatible: a named dense vector with matching "
                 "dimensions, distance and a trusted embedding fingerprint is required. "
                 "Choose a different collection, or explicitly clear and rebuild with "
-                "hermes qdrant-memory init --existing clear (deletes all collection data).",
+                "hermes hermes-recall init --existing clear (deletes all collection data).",
             )
         print_json({"error": error})
         return 1
 
 
-globals()["qdrant-memory_command"] = main
+globals()["hermes-recall_command"] = main

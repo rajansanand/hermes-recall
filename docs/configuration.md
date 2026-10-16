@@ -10,9 +10,9 @@ The additive host-independent CLI and MCP interface is documented in
 [standalone setup](standalone.md), including its separate profile, operator-secret
 resolution, fixed scope and no-Hermes acceptance requirements.
 
-The active profile's `qdrant-memory.json` holds behavior configuration. Its `.env`
+The active profile's `hermes-recall.json` holds behavior configuration. Its `.env`
 holds secrets. The plugin never reads `mem0.json` at runtime. Missing settings
-take the defaults declared in `qdrant_memory/config.py`. The plugin keeps unknown
+take the defaults declared in `hermes_recall/config.py`. The plugin keeps unknown
 fields for forward compatibility.
 
 During `hermes memory setup`, the wizard resolves `QDRANT_URL` and `QDRANT_API_KEY`
@@ -28,11 +28,11 @@ Endpoint and HTTPS transport checks still apply. Deployment mode remains a user 
   "schema_version": 1,
   "scope": {"user_id": "hermes-user", "agent_id": "hermes"},
   "qdrant": {
-    "mode": "cloud", "collection": "hermes_qdrant_memory",
+    "mode": "cloud", "collection": "hermes_recall",
     "url_env": "QDRANT_URL", "api_key_env": "QDRANT_API_KEY",
     "timeout_seconds": 5, "prefer_grpc": false
   },
-  "llm": {"mode": "inherit", "task": "qdrant_memory_extraction"},
+  "llm": {"mode": "inherit", "task": "hermes_recall_extraction"},
   "embedding": {
     "mode": "plugin", "provider": "ollama", "model": "qwen3-embedding:4b",
     "base_url": "http://127.0.0.1:11434", "dimensions": 2560,
@@ -49,7 +49,7 @@ Endpoint and HTTPS transport checks still apply. Deployment mode remains a user 
 }
 ```
 
-Embedded mode uses `$HERMES_HOME/qdrant-memory/qdrant`, unless `qdrant.path` is
+Embedded mode uses `$HERMES_HOME/hermes-recall/qdrant`, unless `qdrant.path` is
 explicit. Relative paths resolve against the active profile home, and canonical
 storage paths determine the ledger namespace independently of the working directory.
 Server mode defaults to `http://127.0.0.1:6333`. Cloud requires HTTPS
@@ -68,7 +68,7 @@ model, base_url and dimensions. Until a compatible Hermes facade exists, the plu
 uses the fallback. Different dimensions, metrics or fingerprints require a new
 collection and explicit migration. The plugin never changes a live vector schema.
 
-LLM `mode: task` uses `auxiliary.qdrant_memory_extraction` from Hermes config.
+LLM `mode: task` uses `auxiliary.hermes_recall_extraction` from Hermes config.
 LLM `mode: override` accepts provider/model and traverses Hermes's operator trust
 gate. LLM keys and fallback routing remain entirely host-owned.
 
@@ -95,7 +95,7 @@ For an existing self-hosted server:
   "qdrant": {
     "mode": "server",
     "url": "https://qdrant.example.com",
-    "collection": "hermes_qdrant_memory"
+    "collection": "hermes_recall"
   }
 }
 ```
@@ -125,7 +125,7 @@ still requires a compatible new collection.
 LLM routing is independent of embedding:
 
 ```json
-{"llm": {"mode": "task", "task": "qdrant_memory_extraction"}}
+{"llm": {"mode": "task", "task": "hermes_recall_extraction"}}
 ```
 
 Configure the registered task using Hermes auxiliary-model setup. For an explicit
@@ -141,8 +141,8 @@ These plugin settings do not bypass Hermes trust grants or contain LLM credentia
 
 | Setting | Default | Contract |
 | --- | --- | --- |
-| qdrant.collection | hermes_qdrant_memory | A separate plugin-managed collection with named dense vectors |
-| qdrant.path | Active home/qdrant-memory/qdrant | Relative paths resolve against active home. Keep distinct across profiles |
+| qdrant.collection | hermes_recall | A separate plugin-managed collection with named dense vectors |
+| qdrant.path | Active home/hermes-recall/qdrant | Relative paths resolve against active home. Keep distinct across profiles |
 | scope.user_id / agent_id | hermes-user / hermes | Explicit gateway authors take precedence for their turns. The agent may be null |
 | search.top_k / candidate_k | 8 / 24 | Candidate count must be at least result count |
 | write.max_attempts | 5 | Total attempt budget, not five retries after the first attempt |

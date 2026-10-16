@@ -53,7 +53,7 @@ class HTTPEmbeddingProvider:
             headers={"Authorization": f"Bearer {key}"} if key else {},
         )
 
-    def _embed(self, texts):
+    def _embed(self, texts, *, timeout=None):
         """Request embeddings and validate input order and vector shape."""
         base = self.cfg["base_url"].rstrip("/")
         body = {"model": self.cfg["model"], "input": texts}
@@ -63,9 +63,12 @@ class HTTPEmbeddingProvider:
             body["truncate"] = False
         else:
             url = base + ("/embeddings" if base.endswith("/v1") else "/v1/embeddings")
+            if self.cfg.get("provider_preferences"):
+                body["provider"] = self.cfg["provider_preferences"]
             if self.cfg.get("send_dimensions"):
                 body["dimensions"] = self.dimensions
-        response = self.client.post(url, json=body)
+        options = {} if timeout is None else {"timeout": timeout}
+        response = self.client.post(url, json=body, **options)
         response.raise_for_status()
         data = response.json()
         if self.cfg["provider"] == "ollama":
@@ -90,9 +93,9 @@ class HTTPEmbeddingProvider:
             )
         return result
 
-    def embed_query(self, text):
+    def embed_query(self, text, *, timeout=None):
         """Embed a query with its configured retrieval instruction prefix."""
-        return self._embed([self.cfg.get("query_instruction", "") + text])[0]
+        return self._embed([self.cfg.get("query_instruction", "") + text], timeout=timeout)[0]
 
     def close(self):
         """Close the HTTP client owned by this adapter."""

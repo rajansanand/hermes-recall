@@ -6,22 +6,22 @@ import os
 import httpx
 import pytest
 
-from qdrant_memory.config import DEFAULTS, fingerprint, load_config, merge, validate_url
-from qdrant_memory.config_schema import save_config
-from qdrant_memory.embedding import HTTPEmbeddingProvider, build_embedder
-from qdrant_memory.models import Scope, content_hash, enforce_limits, payload, point_id
-from qdrant_memory.retry import run_with_retry, safe_error
+from hermes_recall.config import DEFAULTS, fingerprint, load_config, merge, validate_url
+from hermes_recall.config_schema import save_config
+from hermes_recall.embedding import HTTPEmbeddingProvider, build_embedder
+from hermes_recall.models import Scope, content_hash, enforce_limits, payload, point_id
+from hermes_recall.retry import run_with_retry, safe_error
 
 
 def test_scoped_config_and_secret_safe_save(tmp_path, monkeypatch):
     """Verify scoped config and secret safe save."""
     monkeypatch.setattr(
-        "qdrant_memory.config.secret",
+        "hermes_recall.config.secret",
         lambda name: {"QDRANT_URL": "https://cloud.example", "QDRANT_API_KEY": "sentinel-key"}.get(
             name
         ),
     )
-    path = tmp_path / "qdrant-memory.json"
+    path = tmp_path / "hermes-recall.json"
     path.write_text(
         json.dumps(
             {
@@ -79,10 +79,10 @@ def test_api_key_allows_http_for_local_endpoints(url):
 def test_resolved_qdrant_api_key_requires_https(tmp_path, monkeypatch):
     """The configured endpoint validator sees API keys resolved from secret scope."""
     monkeypatch.setattr(
-        "qdrant_memory.config.secret",
+        "hermes_recall.config.secret",
         lambda name: "remote-key" if name == "QDRANT_API_KEY" else None,
     )
-    (tmp_path / "qdrant-memory.json").write_text(
+    (tmp_path / "hermes-recall.json").write_text(
         json.dumps({"qdrant": {"mode": "server", "url": "http://qdrant.example"}})
     )
     with pytest.raises(ValueError, match="API-key endpoints require HTTPS"):
@@ -97,7 +97,7 @@ def test_fingerprint_normalizes_trailing_base_url_slashes():
 
 def test_embedding_secret_requires_https_before_http_client_creation(monkeypatch):
     """Environment-resolved embedding keys cannot reach remote HTTP endpoints."""
-    monkeypatch.setattr("qdrant_memory.embedding.secret", lambda name: "resolved-key")
+    monkeypatch.setattr("hermes_recall.embedding.secret", lambda name: "resolved-key")
     created = []
     monkeypatch.setattr(httpx, "Client", lambda **kwargs: created.append(kwargs))
     cfg = merge(DEFAULTS["embedding"], {"base_url": "http://embed.example"})
@@ -111,7 +111,7 @@ def test_embedding_secret_requires_https_before_http_client_creation(monkeypatch
 @pytest.mark.parametrize("provider", ["ollama", "openai-compatible"])
 def test_embedding_wire_contract(provider, monkeypatch):
     """Verify embedding wire contract."""
-    monkeypatch.setattr("qdrant_memory.embedding.secret", lambda name: None)
+    monkeypatch.setattr("hermes_recall.embedding.secret", lambda name: None)
     requests = []
 
     def handler(request):
@@ -143,9 +143,39 @@ def test_embedding_wire_contract(provider, monkeypatch):
     client.close()
 
 
+def test_openrouter_routing_preferences_and_query_instruction(monkeypatch):
+    """Routing is opt-in and query instructions reach the embedding endpoint."""
+    monkeypatch.setattr("hermes_recall.embedding.secret", lambda name: None)
+    requests = []
+
+    def handler(request):
+        requests.append(json.loads(request.content))
+        return httpx.Response(200, json={"data": [{"index": 0, "embedding": [1, 0]}]})
+
+    cfg = merge(
+        DEFAULTS["embedding"],
+        {
+            "provider": "openai-compatible",
+            "base_url": "https://openrouter.ai/api/v1",
+            "model": "qwen/qwen3-embedding-8b",
+            "dimensions": 2,
+            "query_instruction": "Retrieve: ",
+            "provider_preferences": {"sort": "latency"},
+        },
+    )
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        embedder = HTTPEmbeddingProvider(cfg, client)
+        assert embedder.embed_query("favorite editor") == [1, 0]
+        assert requests[0]["provider"] == {"sort": "latency"}
+        assert requests[0]["input"] == ["Retrieve: favorite editor"]
+        embedder.cfg.pop("provider_preferences")
+        embedder.embed_query("another query")
+        assert "provider" not in requests[1]
+
+
 def test_embedding_dimensions_and_fallback(monkeypatch):
     """Verify embedding dimensions and fallback."""
-    monkeypatch.setattr("qdrant_memory.embedding.secret", lambda name: None)
+    monkeypatch.setattr("hermes_recall.embedding.secret", lambda name: None)
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda req: httpx.Response(200, json={"embeddings": [[1, 0, 0]]})

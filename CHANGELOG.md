@@ -1,3 +1,9 @@
+# Hermes Recall 0.1.0
+
+Initial independent release: current-question turn-start recall, scoped cache handoff, same-process shared embedded backend, OpenRouter routing options, native dependency compatibility, and an updated optional MCP 2 adapter. See NOTICE.md for upstream lineage.
+
+---
+
 # Changelog
 
 ## Unreleased
@@ -47,7 +53,7 @@
   Linux/macOS/Windows standalone compatibility matrix.
 
 - Documentation: lead both READMEs with the official Hermes Plugin Catalog
-  install (`hermes plugins install qdrant-memory`). The pinned-URL and tag
+  install (`hermes plugins install hermes-recall`). The pinned-URL and tag
   installs remain as the version-locked alternatives. The entry is listed as
   community-maintained.
 - Documentation: add the catalog integration acceptance record

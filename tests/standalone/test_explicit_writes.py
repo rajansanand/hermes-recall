@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from qdrant_memory.models import Scope, content_hash, point_id
+from hermes_recall.models import Scope, content_hash, point_id
 
 from .test_standalone import command
 from .test_standalone import profile as standalone_profile
@@ -28,17 +28,17 @@ def test_explicit_python_api_without_host_or_llm(profile):
     home, env = profile
     command(profile, "init")
     script = f"""
-from qdrant_memory.standalone import open_runtime, call_tool
-from qdrant_memory.models import Scope
+from hermes_recall.standalone import open_runtime, call_tool
+from hermes_recall.models import Scope
 with open_runtime({str(home)!r}) as runtime:
     assert runtime.extractor is None
-    first = call_tool(runtime, 'qdrant_memory_add', {{'text': {FIRST!r}}})
+    first = call_tool(runtime, 'hermes_recall_add', {{'text': {FIRST!r}}})
     scope = Scope(**runtime.cfg['scope'])
     assert runtime.store.search({SECOND!r}, scope)[0].score >= .97
-    second = call_tool(runtime, 'qdrant_memory_add', {{'text': {SECOND!r}}})
+    second = call_tool(runtime, 'hermes_recall_add', {{'text': {SECOND!r}}})
     assert first['action'] == second['action'] == 'ADD'
     assert first['id'] != second['id']
-    duplicate = call_tool(runtime, 'qdrant_memory_add', {{'text': {FIRST!r}}})
+    duplicate = call_tool(runtime, 'hermes_recall_add', {{'text': {FIRST!r}}})
     assert duplicate == {{'action': 'SKIP', 'id': first['id']}}
     assert runtime.store.count(scope) == 2
 """
@@ -78,7 +78,7 @@ def test_explicit_official_stdio_sdk_similarity(profile):
     command(profile, "init")
     home, env = profile
     executable = Path(sysconfig.get_path("scripts")) / (
-        "qdrant-memory.exe" if os.name == "nt" else "qdrant-memory"
+        "hermes-recall.exe" if os.name == "nt" else "hermes-recall"
     )
 
     async def check():
@@ -95,14 +95,14 @@ def test_explicit_official_stdio_sdk_similarity(profile):
                 assert len((await client.list_tools()).tools) == 4
                 ids = []
                 for text in (FIRST, SECOND):
-                    result = await client.call_tool("qdrant_memory_add", {"text": text})
-                    assert not result.isError, result.content
+                    result = await client.call_tool("hermes_recall_add", {"text": text})
+                    assert not result.is_error, result.content
                     value = json.loads(result.content[0].text)
                     assert value["action"] == "ADD"
                     ids.append(value["id"])
                 assert len(set(ids)) == 2
-                result = await client.call_tool("qdrant_memory_add", {"text": FIRST})
-                assert not result.isError
+                result = await client.call_tool("hermes_recall_add", {"text": FIRST})
+                assert not result.is_error
                 assert json.loads(result.content[0].text) == {"action": "SKIP", "id": ids[0]}
 
     asyncio.run(check())

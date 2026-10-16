@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope
 
 from .helpers import capture_committed_event_payloads
 from .test_provider import provider
@@ -125,7 +125,7 @@ def test_author_persistence_failure_revokes_recall(tmp_path, monkeypatch):
         with pytest.raises(OSError, match="attribution unavailable"):
             p.on_turn_start(2, "", author_id="bob")
         assert p._authors["first"] == {"alice"}
-        assert json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "fact"}))["error"]
+        assert json.loads(p.handle_tool_call("hermes_recall_search", {"query": "fact"}))["error"]
         monkeypatch.setattr(p.ledger, "record_session_author", original)
         p.on_turn_start(3, "", author_id="bob")
         assert p._authors["first"] == {"alice", "bob"}
@@ -252,6 +252,6 @@ def test_transition_persistence_failure_denies_old_authority(tmp_path, monkeypat
         assert p.session_id == "first"
         assert p._authors["first"] == {"alice"}
         assert {"first", "child"} <= p._blocked_sessions
-        assert json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "fact"}))["error"]
+        assert json.loads(p.handle_tool_call("hermes_recall_search", {"query": "fact"}))["error"]
     finally:
         p.shutdown()

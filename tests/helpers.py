@@ -4,11 +4,34 @@ from types import SimpleNamespace
 
 from qdrant_client import QdrantClient
 
-from qdrant_memory.config import DEFAULTS, merge
-from qdrant_memory.extraction import Extractor
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.qdrant_store import QdrantStore
-from qdrant_memory.runtime import Runtime
+from hermes_recall.config import DEFAULTS, merge
+from hermes_recall.extraction import Extractor
+from hermes_recall.ledger import Ledger
+from hermes_recall.qdrant_store import QdrantStore
+from hermes_recall.runtime import Runtime
+
+
+def copy_plugin(target):
+    """Install source files like the native installer, without symlink privileges."""
+    from pathlib import Path
+    from shutil import copy2, copytree, ignore_patterns
+
+    source = Path(__file__).resolve().parents[1]
+    target.mkdir()
+    for name in (
+        "__init__.py",
+        "cli.py",
+        "config_schema.py",
+        "plugin.yaml",
+        "pyproject.toml",
+        "README.md",
+        "LICENSE",
+        "NOTICE.md",
+    ):
+        copy2(source / name, target / name)
+    copytree(
+        source / "hermes_recall", target / "hermes_recall", ignore=ignore_patterns("__pycache__")
+    )
 
 
 def capture_committed_event_payloads(monkeypatch, ledger):

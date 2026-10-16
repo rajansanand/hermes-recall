@@ -12,19 +12,21 @@ from hermes_cli import memory_setup
 from plugins.memory import load_memory_provider
 from ruamel.yaml import YAML
 
+from .helpers import copy_plugin
+
 
 def test_real_memory_setup_saves_fields_secrets_and_activation(tmp_path, monkeypatch):
     """Generic setup persists behavior in JSON and credentials only in profile .env."""
     home = tmp_path / "profile"
     (home / "plugins").mkdir(parents=True)
-    (home / "plugins" / "qdrant-memory").symlink_to(Path(__file__).resolve().parents[1])
+    copy_plugin(home / "plugins" / "hermes-recall")
     (home / "config.yaml").write_text("plugins:\n  isolation: in_process\n")
     monkeypatch.setenv("HERMES_HOME", str(home))
     monkeypatch.delenv("QDRANT_URL", raising=False)
     monkeypatch.delenv("QDRANT_API_KEY", raising=False)
     providers = memory_setup._get_available_providers()
-    assert any(name == "qdrant-memory" for name, _, _ in providers)
-    selected = next(i for i, (name, _, _) in enumerate(providers) if name == "qdrant-memory")
+    assert any(name == "hermes-recall" for name, _, _ in providers)
+    selected = next(i for i, (name, _, _) in enumerate(providers) if name == "hermes-recall")
 
     def choose(title, choices, **kwargs):
         """Select the real provider and OpenAI-compatible embedding mode."""
@@ -47,7 +49,7 @@ def test_real_memory_setup_saves_fields_secrets_and_activation(tmp_path, monkeyp
     dependencies = []
     monkeypatch.setattr(memory_setup, "_install_dependencies", dependencies.append)
     memory_setup.cmd_setup(SimpleNamespace())
-    saved = json.loads((home / "qdrant-memory.json").read_text())
+    saved = json.loads((home / "hermes-recall.json").read_text())
     assert saved["embedding"]["dimensions"] == 3
     assert saved["embedding"]["model"] == "custom-model"
     assert saved["embedding"]["provider"] == "openai-compatible"
@@ -59,11 +61,11 @@ def test_real_memory_setup_saves_fields_secrets_and_activation(tmp_path, monkeyp
     assert "EMBEDDING_API_KEY=setup-embedding-secret" in secrets
     assert (
         YAML(typ="safe").load((home / "config.yaml").read_text())["memory"]["provider"]
-        == "qdrant-memory"
+        == "hermes-recall"
     )
-    assert dependencies == ["qdrant-memory"]
-    assert load_memory_provider("qdrant-memory").name == "qdrant-memory"
-    assert not (tmp_path / "qdrant-memory.json").exists()
+    assert dependencies == ["hermes-recall"]
+    assert load_memory_provider("hermes-recall").name == "hermes-recall"
+    assert not (tmp_path / "hermes-recall.json").exists()
 
 
 def test_provider_discovery_needs_no_prepared_runtime_dependencies(tmp_path):
@@ -75,7 +77,7 @@ def test_provider_discovery_needs_no_prepared_runtime_dependencies(tmp_path):
     """
     home = tmp_path / "profile"
     (home / "plugins").mkdir(parents=True)
-    (home / "plugins" / "qdrant-memory").symlink_to(Path(__file__).resolve().parents[1])
+    copy_plugin(home / "plugins" / "hermes-recall")
     (home / "config.yaml").write_text("plugins:\n  isolation: in_process\n")
     code = """
 import sys
@@ -95,9 +97,9 @@ class _BlockRuntimeDeps:
 sys.meta_path.insert(0, _BlockRuntimeDeps())
 from plugins.memory import load_memory_provider
 
-provider = load_memory_provider("qdrant-memory")
+provider = load_memory_provider("hermes-recall")
 assert provider is not None, "discovery loaded no provider without runtime deps"
-assert provider.name == "qdrant-memory"
+assert provider.name == "hermes-recall"
 print("DISCOVERY-OK")
 """
     env = dict(os.environ)
@@ -127,13 +129,13 @@ def test_setup_reuses_environment_without_reprompting(
     tmp_path, monkeypatch, capsys, has_url, has_key
 ):
     """The real host wizard skips each supplied setting and leaves credentials external."""
-    from qdrant_memory.config import load_config
+    from hermes_recall.config import load_config
 
     home = tmp_path / "profile"
     (home / "plugins").mkdir(parents=True)
-    (home / "plugins" / "qdrant-memory").symlink_to(Path(__file__).resolve().parents[1])
+    copy_plugin(home / "plugins" / "hermes-recall")
     (home / "config.yaml").write_text("plugins:\n  isolation: in_process\n")
-    (home / "qdrant-memory.json").write_text(
+    (home / "hermes-recall.json").write_text(
         json.dumps({"qdrant": {"url": "https://stale.example"}})
     )
     monkeypatch.setenv("HERMES_HOME", str(home))
@@ -144,7 +146,7 @@ def test_setup_reuses_environment_without_reprompting(
     if has_key:
         monkeypatch.setenv("QDRANT_API_KEY", "environment-secret-sentinel")
     providers = memory_setup._get_available_providers()
-    selected = next(i for i, (name, _, _) in enumerate(providers) if name == "qdrant-memory")
+    selected = next(i for i, (name, _, _) in enumerate(providers) if name == "hermes-recall")
 
     def choose(title, choices, **kwargs):
         if title == "Memory provider setup":
@@ -177,7 +179,7 @@ def test_setup_reuses_environment_without_reprompting(
         not has_url
     )
     assert any(desc.startswith("Qdrant Database API key") for desc in prompted) == (not has_key)
-    saved = (home / "qdrant-memory.json").read_text()
+    saved = (home / "hermes-recall.json").read_text()
     assert "environment-secret-sentinel" not in saved
     assert "manual-secret-sentinel" not in saved
     cfg = load_config(home)
@@ -201,7 +203,7 @@ def test_setup_environment_lookup_respects_profile_scope(tmp_path, monkeypatch):
     """Another routed profile's global credentials cannot hide this profile's inputs."""
     from agent.secret_scope import reset_secret_scope, set_secret_scope
 
-    from qdrant_memory.config_schema import get_config_schema, save_config
+    from hermes_recall.config_schema import get_config_schema, save_config
 
     monkeypatch.setenv("QDRANT_URL", "https://other-profile.example")
     monkeypatch.setenv("QDRANT_API_KEY", "other-profile-secret")
@@ -218,7 +220,7 @@ def test_setup_environment_lookup_respects_profile_scope(tmp_path, monkeypatch):
     try:
         assert not ({"url", "api_key"} & {field["key"] for field in get_config_schema()})
         save_config({"mode": "cloud"}, tmp_path)
-        saved = (tmp_path / "qdrant-memory.json").read_text()
+        saved = (tmp_path / "hermes-recall.json").read_text()
         assert "other-profile" not in saved and "own-secret" not in saved
     finally:
         reset_secret_scope(token)
@@ -226,11 +228,11 @@ def test_setup_environment_lookup_respects_profile_scope(tmp_path, monkeypatch):
 
 def test_setup_rejects_invalid_environment_url_without_overwriting_config(tmp_path, monkeypatch):
     """Skipping the URL prompt does not bypass endpoint transport validation."""
-    from qdrant_memory.config_schema import save_config
+    from hermes_recall.config_schema import save_config
 
     monkeypatch.setenv("QDRANT_URL", "http://cloud.example")
     monkeypatch.setenv("QDRANT_API_KEY", "not-for-http")
-    path = tmp_path / "qdrant-memory.json"
+    path = tmp_path / "hermes-recall.json"
     original = json.dumps({"qdrant": {"mode": "embedded"}})
     path.write_text(original)
     with pytest.raises(ValueError, match="Cloud requires HTTPS"):
@@ -242,12 +244,12 @@ def test_setup_rejects_invalid_environment_url_without_overwriting_config(tmp_pa
 @pytest.mark.parametrize("url", ["not-a-url", "http://remote.example"])
 def test_setup_validates_environment_url_only_for_remote_modes(tmp_path, monkeypatch, mode, url):
     """An unused remote endpoint cannot prevent embedded setup; remote checks remain."""
-    from qdrant_memory.config import load_config
-    from qdrant_memory.config_schema import save_config
+    from hermes_recall.config import load_config
+    from hermes_recall.config_schema import save_config
 
     monkeypatch.setenv("QDRANT_URL", url)
     monkeypatch.setenv("QDRANT_API_KEY", "test-key")
-    path = tmp_path / "qdrant-memory.json"
+    path = tmp_path / "hermes-recall.json"
     original = json.dumps({"qdrant": {"url": "https://previous.example"}})
     path.write_text(original)
     if mode != "embedded":

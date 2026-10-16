@@ -4,12 +4,12 @@ import pytest
 from qdrant_client import QdrantClient
 from qdrant_client import models as m
 
-from qdrant_memory.dedupe import decide
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, payload, point_id
-from qdrant_memory.qdrant_store import QdrantStore
-from qdrant_memory.runtime import Runtime
-from qdrant_memory.tools import dispatch
+from hermes_recall.dedupe import decide
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, payload, point_id
+from hermes_recall.qdrant_store import QdrantStore
+from hermes_recall.runtime import Runtime
+from hermes_recall.tools import dispatch
 
 from .helpers import LLM, Embedder, config, runtime
 
@@ -23,9 +23,9 @@ def test_scope_isolation_and_wrong_scope_tool_delete(tmp_path):
     assert rt.store.search("cats", alice)
     assert not rt.store.search("cats", bob)
     with pytest.raises(ValueError, match="scope"):
-        dispatch(rt, "qdrant_memory_delete", {"id": identifier}, bob, "s")
+        dispatch(rt, "hermes_recall_delete", {"id": identifier}, bob, "s")
     assert rt.store.count() == 1
-    dispatch(rt, "qdrant_memory_update", {"id": identifier, "text": "dogs preferred"}, alice, "s")
+    dispatch(rt, "hermes_recall_update", {"id": identifier, "text": "dogs preferred"}, alice, "s")
     assert rt.store.get(identifier, alice).payload["text"] == "dogs preferred"
     rt.store.close()
     rt.ledger.close()
@@ -44,7 +44,7 @@ def test_dedupe_never_assumes_similarity_is_identity(tmp_path, relation, action)
     rt.store.upsert([(identifier, payload("cats preferred", scope, "conversation"))])
     result = decide("cats avoided", scope, rt.store, rt.extractor, rt.cfg["dedupe"])
     assert result[0] == action
-    assert llm.calls[-1]["purpose"] == "qdrant-memory.relation"
+    assert llm.calls[-1]["purpose"] == "hermes-recall.relation"
     rt.store.close()
     rt.ledger.close()
 

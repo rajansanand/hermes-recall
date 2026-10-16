@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = """
 import sys
 from types import SimpleNamespace
-from qdrant_memory import cli
+from hermes_recall import cli
 
 def run(args):
     if sys.argv[1] == 'error':
@@ -68,7 +68,7 @@ def test_open_stdout_preserves_json_and_exit_status(mode, expected_code):
 @pytest.mark.skipif(os.name == "nt", reason="This pipe contract relies on POSIX EPIPE behavior.")
 def test_closed_pipe_in_current_process_can_flush_after_failure(monkeypatch, mode, count):
     """Exercise real pipe failures under coverage and ensure later flushes remain safe."""
-    from qdrant_memory import cli
+    from hermes_recall import cli
 
     def run(args):
         if mode == "error":

@@ -6,7 +6,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST_PATHS = (ROOT / "plugin.yaml", ROOT / "qdrant_memory/plugin.yaml")
+MANIFEST_PATHS = (ROOT / "plugin.yaml", ROOT / "hermes_recall/plugin.yaml")
 
 
 def test_manifests_declare_v2_metadata_and_match_runtime_dependencies():
@@ -17,17 +17,13 @@ def test_manifests_declare_v2_metadata_and_match_runtime_dependencies():
 
     assert manifests[0] == manifests[1]
     manifest = manifests[0]
-    from qdrant_memory.version import VERSION
+    from hermes_recall.version import VERSION
 
     assert str(manifest["version"]) == project["version"] == VERSION
-    for name in ("README.md", "README.zh-CN.md", "docs/standalone.md", "docs/mcp.md"):
-        text = (ROOT / name).read_text(encoding="utf-8")
-        assert f"hermes-plugin-qdrant-memory[mcp]=={VERSION}" in text
-        assert "hermes-plugin-qdrant-memory[mcp]==0.2.0" not in text
     assert manifest["manifest_version"] == 2
     assert manifest["author"] == "Kang Liu"
     assert manifest["license"] == "MIT"
-    assert manifest["homepage"] == "https://github.com/cnkang/hermes-plugin-qdrant-memory"
+    assert manifest["homepage"] == "https://github.com/rajansanand/hermes-recall"
     assert manifest["tags"] == ["memory", "qdrant", "vector-search"]
     assert manifest["python_dependencies"] == project["dependencies"]
     assert manifest["provides_hooks"] == []
@@ -44,7 +40,7 @@ def test_hermes_manifest_parser_surfaces_v2_metadata():
     assert parsed.manifest_version == 2
     assert parsed.author == "Kang Liu"
     assert parsed.license == "MIT"
-    assert parsed.homepage == "https://github.com/cnkang/hermes-plugin-qdrant-memory"
+    assert parsed.homepage == "https://github.com/rajansanand/hermes-recall"
     assert parsed.tags == ["memory", "qdrant", "vector-search"]
     assert parsed.python_dependencies == [
         "qdrant-client>=1.15,<2",

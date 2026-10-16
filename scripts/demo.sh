@@ -1,5 +1,5 @@
 #!/bin/bash
-# Demo: durable memory with the qdrant-memory plugin, in embedded mode.
+# Demo: durable memory with the hermes-recall plugin, in embedded mode.
 #
 # The script uses a dedicated HERMES_HOME, so it does not touch an existing
 # Hermes profile. It installs the pinned release, teaches a preference,
@@ -93,12 +93,12 @@ run_chat() {
 }
 
 memories_total() {
-  hermes qdrant-memory list --user hermes-user --agent hermes 2>/dev/null \
+  hermes hermes-recall list --user hermes-user --agent hermes 2>/dev/null \
     | python3 -c "import sys,json;print(json.load(sys.stdin)['count']['total'])" 2>/dev/null || echo -1
 }
 
 say "Install the pinned release through the Hermes CLI"
-install_args=(https://github.com/cnkang/hermes-plugin-qdrant-memory --ref "$RELEASE_REF")
+install_args=(https://github.com/rajansanand/hermes-recall --ref "$RELEASE_REF")
 install_help=$(hermes plugins install --help 2>/dev/null || true)
 # --yes-deps exists on newer Hermes; older releases prepare dependencies by
 # default and reject the unknown flag. --force reinstalls over an existing
@@ -106,12 +106,12 @@ install_help=$(hermes plugins install --help 2>/dev/null || true)
 if printf '%s' "$install_help" | grep -q -- "--yes-deps"; then install_args+=(--yes-deps); fi
 if printf '%s' "$install_help" | grep -q -- "--force"; then install_args+=(--force); fi
 hermes plugins install "${install_args[@]}" </dev/null || fail "plugins install"
-hermes plugins enable qdrant-memory </dev/null || fail "plugins enable"
+hermes plugins enable hermes-recall </dev/null || fail "plugins enable"
 # The README's interactive flow uses `hermes memory setup` here; the script
 # sets the provider directly instead, which is equivalent for a demo home.
-hermes config set memory.provider qdrant-memory || fail "config set memory.provider"
-hermes qdrant-memory init --existing use || fail "qdrant-memory init"
-hermes qdrant-memory status || fail "qdrant-memory status"
+hermes config set memory.provider hermes-recall || fail "config set memory.provider"
+hermes hermes-recall init --existing use || fail "hermes-recall init"
+hermes hermes-recall status || fail "hermes-recall status"
 pre=$(memories_total)
 if [ "$pre" = "-1" ]; then
   fail "cannot read the demo scope (hermes-user/hermes) in $DEMO_HOME"
@@ -140,7 +140,7 @@ done
 [ "$stored" -gt 0 ] || fail "the background extraction stored no new memories within 600s"
 
 say "Stored memories — scoped inventory"
-hermes qdrant-memory list --user hermes-user --agent hermes || fail "qdrant-memory list"
+hermes hermes-recall list --user hermes-user --agent hermes || fail "hermes-recall list"
 
 say "Session 2 — a fresh session recalls the preference"
 recall_out=$(run_chat 600 "Search your durable memory: what is my project codename, and which node do I deploy to?") || fail "session 2 chat"
@@ -148,21 +148,21 @@ printf '%s\n' "$recall_out"
 printf '%s\n' "$recall_out" | grep -q "ORION-7" || fail "the recall did not return the stored codename"
 
 say "Backend — embedded Qdrant, no separate service"
-hermes qdrant-memory stats || true
-ls -la "$HERMES_HOME/qdrant-memory/" 2>/dev/null | head -6 || true
+hermes hermes-recall stats || true
+ls -la "$HERMES_HOME/hermes-recall/" 2>/dev/null | head -6 || true
 
 say "Lifecycle — export a portable copy"
 export_dir=$(mktemp -d "${TMPDIR:-/tmp}/qdrant-demo-export.XXXXXX")
 export_file="$export_dir/export.json"
 trap 'rm -rf "$export_dir"' EXIT
-hermes qdrant-memory export --output "$export_file" --user hermes-user --agent hermes || fail "qdrant-memory export"
+hermes hermes-recall export --output "$export_file" --user hermes-user --agent hermes || fail "hermes-recall export"
 head -c 420 "$export_file" || true; echo
 rm -rf "$export_dir"
 trap - EXIT
 
 say "Lifecycle — scoped deletion with verification"
-hermes qdrant-memory delete-all --user hermes-user --agent hermes --confirm || fail "qdrant-memory delete-all"
+hermes hermes-recall delete-all --user hermes-user --agent hermes --confirm || fail "hermes-recall delete-all"
 remaining=$(memories_total)
 [ "$remaining" = "0" ] || fail "the scope is not empty after deletion (${remaining} memories)"
-hermes qdrant-memory list --user hermes-user --agent hermes || fail "qdrant-memory list"
+hermes hermes-recall list --user hermes-user --agent hermes || fail "hermes-recall list"
 say "Done — the memory is gone and the scope is empty."

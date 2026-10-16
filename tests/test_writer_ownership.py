@@ -12,9 +12,9 @@ import pytest
 import utils
 from qdrant_client import QdrantClient
 
-from qdrant_memory import cli
-from qdrant_memory.ownership import WriterBusyError
-from qdrant_memory.provider import QdrantMemoryProvider
+from hermes_recall import cli
+from hermes_recall.ownership import WriterBusyError
+from hermes_recall.provider import QdrantMemoryProvider
 
 from .helpers import LLM, Embedder, config
 
@@ -26,7 +26,7 @@ def test_active_provider_excludes_second_runtime_before_service_access(tmp_path,
     if mode != "embedded":
         settings["url"] = "https://writer.example.invalid"
     if mode == "cloud":
-        monkeypatch.setattr("qdrant_memory.config.secret", lambda _name: "synthetic-test-key")
+        monkeypatch.setattr("hermes_recall.config.secret", lambda _name: "synthetic-test-key")
     owner = QdrantMemoryProvider(
         plugin_context=SimpleNamespace(llm=LLM()),
         embedder=Embedder(),
@@ -47,7 +47,7 @@ def test_active_provider_excludes_second_runtime_before_service_access(tmp_path,
 
     monkeypatch.setattr(owner.store, "upsert", blocked_upsert)
     thread = Thread(
-        target=lambda: results.append(owner.handle_tool_call("qdrant_memory_add", {"text": "cats"}))
+        target=lambda: results.append(owner.handle_tool_call("hermes_recall_add", {"text": "cats"}))
     )
     thread.start()
     try:
@@ -56,11 +56,15 @@ def test_active_provider_excludes_second_runtime_before_service_access(tmp_path,
         def unexpected_service(*_args, **_kwargs):
             pytest.fail("Competing production writers must fail before service access")
 
-        monkeypatch.setattr("qdrant_memory.provider.build_client", unexpected_service)
-        contender = QdrantMemoryProvider(embedder=Embedder(), overrides=config(qdrant=settings))
-        with pytest.raises(WriterBusyError):
-            contender.initialize("contender", hermes_home=str(tmp_path))
-        assert not hasattr(contender, "runtime")
+        monkeypatch.setattr("hermes_recall.provider.build_client", unexpected_service)
+        contender = QdrantMemoryProvider(
+            plugin_context=SimpleNamespace(llm=LLM()),
+            embedder=Embedder(),
+            overrides=config(qdrant=settings),
+        )
+        contender.initialize("contender", hermes_home=str(tmp_path))
+        assert contender.store is owner.store
+        assert contender.runtime.lock is owner.runtime.lock
 
         monkeypatch.setattr(cli, "load_config", lambda *_args, **_kwargs: owner.cfg)
         monkeypatch.setattr(cli, "build_embedder", unexpected_service)
@@ -85,7 +89,7 @@ def test_active_provider_excludes_second_runtime_before_service_access(tmp_path,
         child = """
 import json, sys
 sys.path[:0] = sys.argv[3:]
-from qdrant_memory.ownership import WriterBusyError, WriterLease
+from hermes_recall.ownership import WriterBusyError, WriterLease
 try:
     lease = WriterLease.for_config(sys.argv[1], json.loads(sys.argv[2]))
 except WriterBusyError:
@@ -111,6 +115,7 @@ sys.exit(24)
         release.set()
         thread.join(10)
         owner.shutdown()
+        contender.shutdown()
     assert not thread.is_alive()
     assert json.loads(results[0])["action"] == "ADD"
 
@@ -125,7 +130,7 @@ def test_one_provider_serializes_delete_after_inflight_upsert(tmp_path, monkeypa
     )
     owner.initialize("writer-session", hermes_home=str(tmp_path))
     assert owner.wait_idle()
-    created = json.loads(owner.handle_tool_call("qdrant_memory_add", {"text": "cats"}))
+    created = json.loads(owner.handle_tool_call("hermes_recall_add", {"text": "cats"}))
     identifier = created["id"]
     entered, release, delete_started, delete_finished = Event(), Event(), Event(), Event()
     original = owner.store.upsert
@@ -138,13 +143,13 @@ def test_one_provider_serializes_delete_after_inflight_upsert(tmp_path, monkeypa
 
     def delete():
         delete_started.set()
-        results.append(owner.handle_tool_call("qdrant_memory_delete", {"id": identifier}))
+        results.append(owner.handle_tool_call("hermes_recall_delete", {"id": identifier}))
         delete_finished.set()
 
     monkeypatch.setattr(owner.store, "upsert", blocked_upsert)
     updater = Thread(
         target=lambda: results.append(
-            owner.handle_tool_call("qdrant_memory_update", {"id": identifier, "text": "dogs"})
+            owner.handle_tool_call("hermes_recall_update", {"id": identifier, "text": "dogs"})
         )
     )
     deleter = Thread(target=delete)

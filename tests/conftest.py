@@ -14,15 +14,15 @@ if not sys.flags.isolated:
 def pytest_sessionstart(session):
     """Require isolated acceptance to exercise the installed distribution."""
     if sys.flags.isolated:
-        import qdrant_memory
+        import hermes_recall
 
-        origin = Path(qdrant_memory.__file__).resolve()
+        origin = Path(hermes_recall.__file__).resolve()
         installed_roots = {
             Path(sysconfig.get_path(key)).resolve() for key in ("purelib", "platlib")
         }
         if not any(origin.is_relative_to(root) for root in installed_roots):
             raise pytest.UsageError(
-                "Isolated acceptance must import qdrant_memory from installed site-packages"
+                "Isolated acceptance must import hermes_recall from installed site-packages"
             )
 
 

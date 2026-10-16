@@ -2,8 +2,8 @@
 
 import json
 
-from qdrant_memory.ledger import Ledger
-from qdrant_memory.models import Scope, content_hash, now
+from hermes_recall.ledger import Ledger
+from hermes_recall.models import Scope, content_hash, now
 
 
 def test_startup_scrubs_only_terminal_event_and_operation_bodies(tmp_path):

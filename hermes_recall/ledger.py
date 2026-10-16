@@ -18,10 +18,10 @@ DELETE_FENCE_PREFIX = "hermes-qdrant-delete-fence-v1:"
 class Ledger:
     """Persist replayable events, mutations, migration manifests and bounded metrics."""
 
-    def __init__(self, home, collection="hermes_qdrant_memory"):
+    def __init__(self, home, collection="hermes_recall"):
         """Open a private profile ledger with WAL and FULL synchronization."""
         self.collection = collection
-        directory = Path(home) / "qdrant-memory"
+        directory = Path(home) / "hermes-recall"
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         directory.chmod(0o700)
         path = directory / "state.db"

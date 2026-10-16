@@ -7,8 +7,8 @@ from pathlib import Path
 from qdrant_client import QdrantClient
 from qdrant_client import models as m
 
-from qdrant_memory.migration import legacy_endpoint, migrate, read_qdrant_records
-from qdrant_memory.models import Scope, payload, point_id
+from hermes_recall.migration import legacy_endpoint, migrate, read_qdrant_records
+from hermes_recall.models import Scope, payload, point_id
 
 from .helpers import runtime
 
@@ -30,7 +30,7 @@ import os, sys
 sys.path.insert(0, sys.argv[1])
 from tests.helpers import runtime
 from qdrant_client import QdrantClient
-from qdrant_memory.models import Scope, payload, point_id
+from hermes_recall.models import Scope, payload, point_id
 rt = runtime(sys.argv[2], client=QdrantClient(path=sys.argv[3]))
 scope = Scope('alice', 'hermes')
 key = rt.operation(point_id(scope, 'manual_tool', 'one'), 'UPSERT', payload('cats', scope, 'manual_tool'))

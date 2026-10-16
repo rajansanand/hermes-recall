@@ -108,7 +108,7 @@ Ambiguous legacy intents require explicit operator resolution. See
 The standalone CLI confines explicit `--source-json`, `--source-config` and
 `--output` paths to the invocation directory after resolving parent traversal
 and existing symlinks. Choose that working directory intentionally and keep its
-contents under trusted control. Legacy `hermes qdrant-memory` and direct Python
+contents under trusted control. Legacy `hermes hermes-recall` and direct Python
 maintenance calls retain trusted-operator file access, including external paths.
 
 Path validation is not an OS sandbox and does not prevent concurrent filesystem

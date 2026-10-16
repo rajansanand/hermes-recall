@@ -4,8 +4,8 @@ import math
 
 import pytest
 
-from qdrant_memory.models import Scope
-from qdrant_memory.tools import dispatch
+from hermes_recall.models import Scope
+from hermes_recall.tools import dispatch
 
 from .helpers import LLM, runtime
 
@@ -23,9 +23,9 @@ def test_explicit_add_keeps_distinct_similar_facts(tmp_path, score, with_extract
         [1.0, 0.0, 0.0] if "preferred" in text else [score, math.sqrt(1 - score**2), 0.0]
     )
     try:
-        first = dispatch(rt, "qdrant_memory_add", {"text": "cats preferred"}, scope, "s")
+        first = dispatch(rt, "hermes_recall_add", {"text": "cats preferred"}, scope, "s")
         assert rt.store.search("cats avoided", scope)[0].score == pytest.approx(score)
-        second = dispatch(rt, "qdrant_memory_add", {"text": "cats avoided"}, scope, "s")
+        second = dispatch(rt, "hermes_recall_add", {"text": "cats avoided"}, scope, "s")
         assert first["action"] == second["action"] == "ADD"
         assert first["id"] != second["id"]
         duplicate = rt.add("  cats   preferred  ", scope)
@@ -73,7 +73,7 @@ def test_automatic_events_retain_factual_relations(tmp_path, relation, count, te
         if relation == "CONFLICT":
             conflict = next(h for h in hits if h.payload["text"] == "cats avoided")
             assert conflict.payload["metadata"]["conflicts_with"] == first["id"]
-        assert any(c["purpose"] == "qdrant-memory.relation" for c in llm.calls)
+        assert any(c["purpose"] == "hermes-recall.relation" for c in llm.calls)
         assert rt.ledger.row("events", key)["status"] == "COMMITTED"
     finally:
         rt.store.close()

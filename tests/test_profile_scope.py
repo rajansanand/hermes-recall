@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from qdrant_memory.cli import run
-from qdrant_memory.config import ledger_namespace, load_config
+from hermes_recall.cli import run
+from hermes_recall.config import ledger_namespace, load_config
 
 from .test_provider import provider
 
@@ -31,12 +31,12 @@ def test_relative_backend_path_is_profile_bound_and_canonical(tmp_path, monkeypa
 @pytest.mark.parametrize("ledger_exists", [False, True])
 def test_cloud_status_without_secrets_is_local(tmp_path, monkeypatch, ledger_exists):
     """Report local Cloud settings while keeping other commands credential gated."""
-    (tmp_path / "qdrant-memory.json").write_text(
+    (tmp_path / "hermes-recall.json").write_text(
         json.dumps({"qdrant": {"mode": "cloud", "url": "https://example.com"}})
     )
-    monkeypatch.setattr("qdrant_memory.config.secret", lambda name: None)
+    monkeypatch.setattr("hermes_recall.config.secret", lambda name: None)
     if ledger_exists:
-        directory = tmp_path / "qdrant-memory"
+        directory = tmp_path / "hermes-recall"
         directory.mkdir()
         (directory / "state.db").touch()
     result = run(SimpleNamespace(qdrant_command="status"), home=tmp_path)
@@ -57,7 +57,7 @@ def test_switch_initializes_scope_before_first_turn(tmp_path, user_id):
         p.sync_turn("cats preferred", "ack")
         assert p.wait_idle()
         p.on_session_switch("second", user_id=user_id)
-        result = json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))
+        result = json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))
         assert result["memories"] == []
         # A brand-new session still defaults when no user_id is supplied.
         expected = user_id or p.default_scope.user_id
@@ -79,7 +79,7 @@ def test_switch_back_without_user_id_preserves_recorded_scope(tmp_path):
         p.on_session_switch("first", reset=False)
         assert p._scope("first").user_id == "alice"
         result = json.loads(
-            p.handle_tool_call("qdrant_memory_search", {"query": "cats"}, session_id="first")
+            p.handle_tool_call("hermes_recall_search", {"query": "cats"}, session_id="first")
         )
         assert [m["text"] for m in result["memories"]] == ["cats preferred"]
     finally:

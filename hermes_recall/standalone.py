@@ -27,7 +27,7 @@ STANDALONE_DEFAULTS = merge(
     DEFAULTS,
     {
         "scope": {"user_id": "local-user", "agent_id": None},
-        "qdrant": {"collection": "qdrant_memory"},
+        "qdrant": {"collection": "hermes_recall"},
     },
 )
 
@@ -38,7 +38,7 @@ class HostExtractionRequiredError(RuntimeError):
 
 def default_home():
     """Return a host-neutral home without consulting Hermes environment settings."""
-    return Path.home() / ".qdrant-memory"
+    return Path.home() / ".hermes-recall"
 
 
 def load_standalone_config(home, overrides=None, resolve_secrets=True, *, secret_reader=None):
@@ -147,11 +147,11 @@ def validate_operator_paths(args):
 
 def parser():
     """Extend the Hermes maintenance grammar with scoped tools and stdio MCP."""
-    result = argparse.ArgumentParser(prog="qdrant-memory")
+    result = argparse.ArgumentParser(prog="hermes-recall")
     result.add_argument("--home", type=Path, default=default_home())
     commands = cli.register_cli(result)
     for definition in schemas():
-        name = definition["name"].removeprefix("qdrant_memory_")
+        name = definition["name"].removeprefix("hermes_recall_")
         command = commands.add_parser(name, help=definition["description"])
         for key in definition["parameters"]["properties"]:
             command.add_argument("--" + key, required=key in definition["parameters"]["required"])
@@ -173,7 +173,7 @@ def main(argv=None):
                 definition = next(
                     item
                     for item in schemas()
-                    if item["name"] == "qdrant_memory_" + args.qdrant_command
+                    if item["name"] == "hermes_recall_" + args.qdrant_command
                 )
                 arguments = {
                     key: getattr(args, key)

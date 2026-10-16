@@ -68,7 +68,7 @@ body:
     attributes:
       label: Diagnostics
       description: >
-        Relevant output from `hermes qdrant-memory doctor`, `stats` or `verify`,
+        Relevant output from `hermes hermes-recall doctor`, `stats` or `verify`,
         plus any tracebacks. Redact secrets and memory contents.
     validations:
       required: false

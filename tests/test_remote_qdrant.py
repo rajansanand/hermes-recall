@@ -8,11 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from qdrant_memory.config import load_config
-from qdrant_memory.migration import migrate, read_qdrant_records, verify_collection, verify_manifest
-from qdrant_memory.models import Scope
-from qdrant_memory.qdrant_store import INDEXES, build_client
-from qdrant_memory.tools import dispatch
+from hermes_recall.config import load_config
+from hermes_recall.migration import migrate, read_qdrant_records, verify_collection, verify_manifest
+from hermes_recall.models import Scope
+from hermes_recall.qdrant_store import INDEXES, build_client
+from hermes_recall.tools import dispatch
 
 from .helpers import config, runtime
 
@@ -89,13 +89,13 @@ def exercise_remote(home, url, key, prefer_grpc, mode, container, collection_pre
         assert rt.store.get(first["id"], bob) is None
         dispatch(
             rt,
-            "qdrant_memory_update",
+            "hermes_recall_update",
             {"id": first["id"], "text": "dogs preferred"},
             alice,
             "remote",
         )
         assert rt.store.get(first["id"], alice).payload["text"] == "dogs preferred"
-        dispatch(rt, "qdrant_memory_delete", {"id": first["id"]}, alice, "remote")
+        dispatch(rt, "hermes_recall_delete", {"id": first["id"]}, alice, "remote")
         assert rt.store.count(alice) == 0
         records = [
             {
@@ -166,7 +166,7 @@ def exercise_fenced_migration(rt):
     independent_id = str(uuid.uuid4())
     rt.store.upsert([(independent_id, value)])
     isolated = rt.add(value["text"], other)
-    dispatch(rt, "qdrant_memory_delete", {"id": independent_id}, scope, "remote")
+    dispatch(rt, "hermes_recall_delete", {"id": independent_id}, scope, "remote")
     resumed = migrate(
         rt, records, "mem0-json", "remote-fenced-fixture", resume=True, retry_failed=True
     )

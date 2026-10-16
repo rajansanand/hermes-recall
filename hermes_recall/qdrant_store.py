@@ -126,7 +126,7 @@ class QdrantStore:
         if not self.client.collection_exists(self.collection):
             if not create:
                 raise CollectionNotInitializedError(
-                    "Collection does not exist; run hermes qdrant-memory init"
+                    "Collection does not exist; run hermes hermes-recall init"
                 )
             self.client.create_collection(
                 self.collection,
@@ -173,7 +173,7 @@ class QdrantStore:
                         id=IDENTITY_ID,
                         vector={"dense": vector},
                         payload={
-                            "_qdrant_memory_schema": 1,
+                            "_hermes_recall_schema": 1,
                             "embedding_fingerprint": self.embedder.fingerprint,
                         },
                     )
@@ -181,13 +181,14 @@ class QdrantStore:
                 wait=True,
             )
 
-    def search(self, query, scope, filters=None, top_k=None):
+    def search(self, query, scope, filters=None, top_k=None, *, vector=None):
         """Retrieve scoped embedding candidates and record latency metrics."""
         from qdrant_client import models as m
 
         search = self.cfg["search"]
         started = time.monotonic()
-        vector = self.embedder.embed_query(query)
+        if vector is None:
+            vector = self.embedder.embed_query(query)
         embedded = time.monotonic()
         hits = self.client.query_points(
             self.collection,

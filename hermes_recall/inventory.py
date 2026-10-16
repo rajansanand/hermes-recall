@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .models import now
 
-EXPORT_FORMAT = "qdrant-memory-export"
+EXPORT_FORMAT = "hermes-recall-export"
 EXPORT_VERSION = 1
 
 
@@ -101,7 +101,7 @@ def write_export(path, collection, points, force=False):
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(
                 "{\n"
-                '  "provider": "qdrant-memory",\n'
+                '  "provider": "hermes-recall",\n'
                 f'  "format": {json.dumps(EXPORT_FORMAT)},\n'
                 f'  "version": {EXPORT_VERSION},\n'
                 f'  "exported_at": {json.dumps(now())},\n'

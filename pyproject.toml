@@ -3,40 +3,39 @@ requires = ["setuptools>=77,<85"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hermes-plugin-qdrant-memory"
-version = "0.2.1"
-description = "Durable Qdrant memory for Hermes, standalone CLI and local MCP"
+name = "hermes-recall"
+version = "0.1.0"
+description = "Native Hermes memory with current-question recall and shared embedded Qdrant"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE.md"]
 requires-python = ">=3.11"
 dependencies = ["qdrant-client>=1.15,<2", "httpx>=0.28,<1", "portalocker>=3.2,<4"]
 
-[project.scripts]
-qdrant-memory = "qdrant_memory.standalone:main"
-
 [project.optional-dependencies]
-mcp = ["mcp>=1.30,<2"]
+mcp = ["mcp>=2,<3"]
+
+[project.scripts]
+hermes-recall = "hermes_recall.standalone:main"
+
 
 [project.urls]
-Homepage = "https://github.com/cnkang/hermes-plugin-qdrant-memory"
-Repository = "https://github.com/cnkang/hermes-plugin-qdrant-memory"
-Issues = "https://github.com/cnkang/hermes-plugin-qdrant-memory/issues"
-Changelog = "https://github.com/cnkang/hermes-plugin-qdrant-memory/blob/main/CHANGELOG.md"
-MCP = "https://github.com/cnkang/qdrant-memory-mcp"
-Skill = "https://github.com/cnkang/skills/tree/main/qdrant-memory"
+Homepage = "https://github.com/rajansanand/hermes-recall"
+Repository = "https://github.com/rajansanand/hermes-recall"
+Issues = "https://github.com/rajansanand/hermes-recall/issues"
+Changelog = "https://github.com/rajansanand/hermes-recall/blob/main/CHANGELOG.md"
 
 [project.entry-points."hermes_agent.memory_providers"]
-qdrant-memory = "qdrant_memory:register"
+hermes-recall = "hermes_recall:register"
 
 [dependency-groups]
-test = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruamel.yaml>=0.18.16,<0.20", "mcp>=1.30,<2"]
+test = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruamel.yaml>=0.18.16,<0.20"]
 
 [tool.setuptools.packages.find]
-include = ["qdrant_memory*"]
+include = ["hermes_recall*"]
 
 [tool.setuptools.package-data]
-qdrant_memory = ["plugin.yaml"]
+hermes_recall = ["plugin.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

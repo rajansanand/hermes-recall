@@ -8,7 +8,7 @@ a local-first Hermes plugin, not a hosted service.
 ## Reporting a vulnerability
 
 Please report vulnerabilities privately through GitHub's
-[Security Advisories](https://github.com/cnkang/hermes-plugin-qdrant-memory/security/advisories):
+[Security Advisories](https://github.com/rajansanand/hermes-recall/security/advisories):
 open the repository's **Security** tab and choose **Report a vulnerability**.
 Do not open a public issue for a suspected vulnerability.
 
@@ -19,13 +19,12 @@ Include, as far as you can:
 - the impact you believe it has (data exposure, injection, denial of service),
 - any suggested fix.
 
-You can expect an initial response within a few days. Please allow time for a
-fix and a release before public disclosure. We credit you in the release
-notes unless you prefer otherwise.
+Response times are not guaranteed. Please allow time for coordinated review
+before public disclosure. Reporter attribution can be arranged privately.
 
 ## Scope
 
-In scope: the plugin package (`qdrant_memory/`), its CLI, and the documented
+In scope: the plugin package (`hermes_recall/`), its CLI, and the documented
 Hermes integration in this repository. Examples: credential handling and
 scope leaks, prompt-injection paths through stored memory, unsafe defaults, or
 path and permission issues.

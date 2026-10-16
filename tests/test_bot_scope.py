@@ -1,11 +1,11 @@
 """Keep bot turns and unattributed transcripts outside personal memory authority."""
 
 import json
-from threading import Event
+from threading import Event, Thread
 
 import pytest
 
-from qdrant_memory.models import Scope
+from hermes_recall.models import Scope
 
 from .helpers import capture_committed_event_payloads
 from .test_provider import provider
@@ -33,7 +33,7 @@ def test_failed_quarantine_write_remains_blocked_and_retries(tmp_path, monkeypat
             p.on_turn_start(1, "", author_is_bot=True)
         assert "first" in p._blocked_sessions
         assert "first" not in p._unattributed_sessions
-        result = json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))
+        result = json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))
         assert result["error"]["type"] == "PermissionError"
         monkeypatch.setattr(p.ledger, "set_session_unattributed", persist)
         p.on_turn_start(2, "", author_is_bot=True)
@@ -49,7 +49,7 @@ def test_bot_cannot_recall_or_use_any_memory_tool(tmp_path, monkeypatch, author_
     p = provider(tmp_path)
     try:
         memory = remember_alice(p)
-        p.queue_prefetch("cats")
+        p._prepare_recall("cats")
         assert p.wait_idle()
         assert "cats preferred" in p.prefetch("cats")
         p.on_turn_start(2, "", author_id=author_id, author_is_bot=True)
@@ -60,7 +60,7 @@ def test_bot_cannot_recall_or_use_any_memory_tool(tmp_path, monkeypatch, author_
             pytest.fail("bot queued personal recall")
 
         monkeypatch.setattr(p.store, "search", denied_search)
-        p.queue_prefetch("cats")
+        p._prepare_recall("cats")
         assert p.wait_idle()
         for tool, args in (
             ("search", {"query": "cats"}),
@@ -68,7 +68,7 @@ def test_bot_cannot_recall_or_use_any_memory_tool(tmp_path, monkeypatch, author_
             ("update", {"id": str(memory.id), "text": "dogs preferred"}),
             ("delete", {"id": str(memory.id)}),
         ):
-            result = json.loads(p.handle_tool_call("qdrant_memory_" + tool, args))
+            result = json.loads(p.handle_tool_call("hermes_recall_" + tool, args))
             assert result["error"]["type"] == "PermissionError"
         p.sync_turn("dogs preferred", "ack")
         p.on_memory_write(
@@ -99,11 +99,13 @@ def test_bot_transition_invalidates_inflight_prefetch(tmp_path, monkeypatch):
             return search(*args, **kwargs)
 
         monkeypatch.setattr(p.store, "search", slow_search)
-        p.queue_prefetch("cats")
+        thread = Thread(target=p._prepare_recall, args=("cats",))
+        thread.start()
         assert entered.wait(5)
         p.on_turn_start(2, "", author_is_bot=True)
         release.set()
-        assert p.wait_idle()
+        thread.join(5)
+        assert not thread.is_alive()
         assert "first" not in p._cache
         p.on_turn_start(3, "", author_id="alice")
         assert p.prefetch("cats") == ""
@@ -149,7 +151,7 @@ def test_quarantine_survives_switch_restart_and_rewind_until_reset(tmp_path):
     p.on_turn_start(1, "", author_is_bot=True)
     p.on_session_switch("second")
     p.on_session_switch("first", rewound=True)
-    assert json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))["error"]
+    assert json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))["error"]
     p.shutdown()
     p = provider(tmp_path)
     try:
@@ -181,9 +183,9 @@ def test_continuation_inherits_bot_restrictions_and_durable_quarantine(
         ("search", {"query": "cats"}),
         ("add", {"text": "dogs preferred"}),
     ):
-        result = json.loads(p.handle_tool_call("qdrant_memory_" + tool, args))
+        result = json.loads(p.handle_tool_call("hermes_recall_" + tool, args))
         assert result["error"]["type"] == "PermissionError"
-    p.queue_prefetch("cats")
+    p._prepare_recall("cats")
     assert p.wait_idle()
     assert p.prefetch("cats") == ""
     p.shutdown()
@@ -192,7 +194,7 @@ def test_continuation_inherits_bot_restrictions_and_durable_quarantine(
     try:
         p.on_session_switch("child")
         assert (
-            json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))["error"][
+            json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))["error"][
                 "type"
             ]
             == "PermissionError"
@@ -225,7 +227,7 @@ def test_reset_during_bot_turn_does_not_restore_human_authority(tmp_path):
         remember_alice(p)
         p.on_turn_start(2, "", author_is_bot=True)
         p.on_session_switch("first", reset=True, user_id="alice")
-        result = json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))
+        result = json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))
         assert result["error"]["type"] == "PermissionError"
         p.on_session_end([{"role": "user", "content": "dogs preferred"}])
         assert p.wait_idle()
@@ -241,7 +243,7 @@ def test_unattributed_shared_turn_does_not_inherit_human_scope(tmp_path, metadat
     try:
         remember_alice(p)
         p.on_turn_start(2, "", **metadata)
-        result = json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "cats"}))
+        result = json.loads(p.handle_tool_call("hermes_recall_search", {"query": "cats"}))
         assert result["error"]["type"] == "PermissionError"
     finally:
         p.shutdown()
@@ -261,7 +263,7 @@ def test_captured_human_turn_and_cli_profile_behavior_remain_valid(tmp_path):
         assert p.wait_idle()
         assert p.store.count(Scope("alice", "hermes")) == 1
         p.on_turn_start(4, "", author_id="alice")
-        result = json.loads(p.handle_tool_call("qdrant_memory_search", {"query": "dogs"}))
+        result = json.loads(p.handle_tool_call("hermes_recall_search", {"query": "dogs"}))
         assert [m["text"] for m in result["memories"]] == ["dogs preferred"]
     finally:
         p.shutdown()

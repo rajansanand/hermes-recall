@@ -17,7 +17,7 @@ class ResetRecoveryRequiredError(ValueError):
         """Initialize the actionable recovery error."""
         super().__init__(
             "An interrupted Qdrant collection reset is pending; rerun "
-            "`hermes qdrant-memory init` to resume it before using this destination."
+            "`hermes hermes-recall init` to resume it before using this destination."
         )
 
 
@@ -41,7 +41,7 @@ def has_pending_reset(ledger):
 
 def has_pending_reset_file(home, collection):
     """Inspect an existing ledger for a reset intent without creating or mutating it."""
-    path = Path(home) / "qdrant-memory" / "state.db"
+    path = Path(home) / "hermes-recall" / "state.db"
     if not path.is_file():
         return False
     with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as db:
@@ -99,7 +99,7 @@ class ScopeDeleteRecoveryRequiredError(ValueError):
         """Initialize the actionable recovery error."""
         super().__init__(
             "An interrupted scoped deletion is pending; rerun "
-            "`hermes qdrant-memory delete-all --confirm` to resume it "
+            "`hermes hermes-recall delete-all --confirm` to resume it "
             "before using this destination."
         )
 
@@ -115,7 +115,7 @@ class ScopeDeleteIncompleteError(ValueError):
         """Initialize the actionable incomplete-deletion error."""
         super().__init__(
             "Scoped deletion incomplete: the scope still contains points. "
-            "The durable intent remains; rerun `hermes qdrant-memory "
+            "The durable intent remains; rerun `hermes hermes-recall "
             "delete-all --confirm` to resume it."
         )
 
@@ -142,7 +142,7 @@ class ScopeDeleteLegacyIntentError(ValueError):
             f"{suffix}; its recorded form cannot distinguish a single-agent "
             "deletion of agent '*' from an all-agents deletion, so automatic "
             "recovery is refused and no data was modified. Resolve it explicitly "
-            "with `hermes qdrant-memory delete-all --user <user> "
+            "with `hermes hermes-recall delete-all --user <user> "
             "--resolve-legacy single_agent --confirm`, or with `--resolve-legacy "
             "all_agents` when the recorded agent is `*` or absent."
         )
@@ -236,7 +236,7 @@ def pending_scope_deletes(ledger):
 
 def pending_scope_deletes_file(home, collection):
     """Inspect an existing ledger for scoped-deletion intents without mutating it."""
-    path = Path(home) / "qdrant-memory" / "state.db"
+    path = Path(home) / "hermes-recall" / "state.db"
     if not path.is_file():
         return []
     with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as db:

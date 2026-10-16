@@ -13,7 +13,7 @@ DEFAULTS = {
     "scope": {"user_id": "hermes-user", "agent_id": "hermes"},
     "qdrant": {
         "mode": "embedded",
-        "collection": "hermes_qdrant_memory",
+        "collection": "hermes_recall",
         "url": None,
         "api_key": None,
         "url_env": "QDRANT_URL",
@@ -21,7 +21,7 @@ DEFAULTS = {
         "timeout_seconds": 5,
         "prefer_grpc": False,
     },
-    "llm": {"mode": "inherit", "task": "qdrant_memory_extraction"},
+    "llm": {"mode": "inherit", "task": "hermes_recall_extraction"},
     "embedding": {
         "mode": "plugin",
         "provider": "ollama",
@@ -126,7 +126,7 @@ def validate_llm(llm):
     """Validate inherited, auxiliary-task and explicitly overridden LLM routing."""
     if llm["mode"] not in {"inherit", "task", "override"}:
         raise ValueError("Invalid LLM mode")
-    if llm["mode"] == "task" and llm["task"] != "qdrant_memory_extraction":
+    if llm["mode"] == "task" and llm["task"] != "hermes_recall_extraction":
         raise ValueError("Use the plugin's registered auxiliary task")
     if llm["mode"] == "override" and not all(llm.get(k) for k in ("provider", "model")):
         raise ValueError("LLM override requires provider and model")
@@ -213,12 +213,12 @@ def load_config(
 ):
     """Load profile settings, merge defaults/overrides and resolve scoped secrets.
 
-    Behavior comes from qdrant-memory.json. Secret resolution can be disabled for
+    Behavior comes from hermes-recall.json. Secret resolution can be disabled for
     local inspection; remote endpoint validation runs when resolution is enabled.
     Invalid supported settings raise ValueError before service initialization.
     """
     home = Path(home).expanduser().resolve()
-    path = home / "qdrant-memory.json"
+    path = home / "hermes-recall.json"
     if json_reader is None:
         from utils import read_json_or_empty
 
@@ -229,7 +229,7 @@ def load_config(
     cfg = merge(merge(defaults or DEFAULTS, values), overrides or {})
     validate(cfg)
     q = cfg["qdrant"]
-    storage = Path(q.get("path") or "qdrant-memory/qdrant").expanduser()
+    storage = Path(q.get("path") or "hermes-recall/qdrant").expanduser()
     q["path"] = str((storage if storage.is_absolute() else home / storage).resolve())
     if resolve_secrets:
         resolve_qdrant_secrets(q, secret_reader=secret_reader)
